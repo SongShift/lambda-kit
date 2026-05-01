@@ -107,6 +107,7 @@ public extension RouterBuilder where R == HTTPRequest,
 
 public extension RouterBuilder where R == HTTPRequest,
     Engine == TrieRouterBuilder<RouteHandler<HTTPRequest>> {
+    /// Register a `GET` handler at the given path.
     func get(
         _ path: String,
         use handler: @Sendable @escaping (HTTPRequest, Logger) async throws -> RouteResponse
@@ -114,6 +115,7 @@ public extension RouterBuilder where R == HTTPRequest,
         self.on(HTTPRequest.get(path), use: handler)
     }
 
+    /// Register a `DELETE` handler at the given path.
     func delete(
         _ path: String,
         use handler: @Sendable @escaping (HTTPRequest, Logger) async throws -> RouteResponse
@@ -126,6 +128,7 @@ public extension RouterBuilder where R == HTTPRequest,
 
 public extension RouteGroup where R == HTTPRequest,
     Engine == TrieRouterBuilder<RouteHandler<HTTPRequest>> {
+    /// Register a `GET` handler at the given path, running this group's middleware first.
     func get(
         _ path: String,
         use handler: @Sendable @escaping (M.Output, Logger) async throws -> RouteResponse
@@ -133,6 +136,7 @@ public extension RouteGroup where R == HTTPRequest,
         self.on(HTTPRequest.get(path), use: handler)
     }
 
+    /// Register a `DELETE` handler at the given path, running this group's middleware first.
     func delete(
         _ path: String,
         use handler: @Sendable @escaping (M.Output, Logger) async throws -> RouteResponse
@@ -148,6 +152,8 @@ public extension RouteGroup where R == HTTPRequest,
    }
 
 
+    /// Register a `POST` handler at the given path, running middleware and JSON-decoding
+    /// the request body into `Body` before invoking the handler.
     func post<Body: Decodable & Sendable>(
         _ path: String,
         body: Body.Type,
@@ -156,6 +162,8 @@ public extension RouteGroup where R == HTTPRequest,
         self.on(HTTPRequest.post(path), body: body, use: handler)
     }
 
+    /// Register a `PUT` handler at the given path, running middleware and JSON-decoding
+    /// the request body into `Body` before invoking the handler.
     func put<Body: Decodable & Sendable>(
         _ path: String,
         body: Body.Type,
@@ -164,6 +172,7 @@ public extension RouteGroup where R == HTTPRequest,
         self.on(HTTPRequest.put(path), body: body, use: handler)
     }
 
+    /// Register a `PATCH` handler at the given path, running this group's middleware first.
     func patch(
         _ path: String,
         use handler: @Sendable @escaping (M.Output, Logger) async throws -> RouteResponse
@@ -171,6 +180,8 @@ public extension RouteGroup where R == HTTPRequest,
         self.on(HTTPRequest.patch(path), use: handler)
     }
 
+    /// Register a `PATCH` handler at the given path, running middleware and JSON-decoding
+    /// the request body into `Body` before invoking the handler.
     func patch<Body: Decodable & Sendable>(
         _ path: String,
         body: Body.Type,
