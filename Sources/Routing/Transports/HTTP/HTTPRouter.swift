@@ -143,14 +143,13 @@ public extension RouteGroup where R == HTTPRequest,
     ) {
         self.on(HTTPRequest.delete(path), use: handler)
     }
-    
-    func post(
-       _ path: String,
-       use handler: @Sendable @escaping (M.Output, Logger) async throws -> RouteResponse
-   ) {
-       self.on(HTTPRequest.post(path), use: handler)
-   }
 
+    func post(
+        _ path: String,
+        use handler: @Sendable @escaping (M.Output, Logger) async throws -> RouteResponse
+    ) {
+        self.on(HTTPRequest.post(path), use: handler)
+    }
 
     /// Register a `POST` handler at the given path, running middleware and JSON-decoding
     /// the request body into `Body` before invoking the handler.
