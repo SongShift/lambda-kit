@@ -1,5 +1,4 @@
 // swift-tools-version: 6.2
-// The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
 import CompilerPluginSupport
@@ -21,15 +20,22 @@ let package = Package(
             name: "DynamoQueriesSoto",
             targets: ["DynamoQueriesSoto"]
         ),
+        .library(name: "APIGatewayV2Server", targets: ["APIGatewayV2Server"]),
     ],
     dependencies: [
         .package(url: "https://github.com/vapor/routing-kit.git", exact: "5.0.0-beta.2"),
         .package(url: "https://github.com/apple/swift-http-types.git", from: "1.0.0"),
         .package(url: "https://github.com/awslabs/swift-aws-lambda-events", from: "1.2.3"),
-        .package(url: "https://github.com/awslabs/swift-aws-lambda-runtime", revision: "2.6.2"),
         .package(url: "https://github.com/soto-project/soto.git", from: "7.0.0"),
         .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "600.0.1"),
         .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
+        .package(
+            url: "https://github.com/awslabs/swift-aws-lambda-runtime",
+            revision: "2.6.2"
+        ),
+        .package(url: "https://github.com/apple/swift-log.git", from: "1.6.0"),
+        .package(url: "https://github.com/hummingbird-project/hummingbird.git", from: "2.0.0"),
+        .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.9.0"),
     ],
     targets: [
         .target(
@@ -91,6 +97,16 @@ let package = Package(
                 .product(name: "AWSLambdaRuntime", package: "swift-aws-lambda-runtime"),
             ],
             path: "Examples/TrailLog/Sources"
+        ),
+        .target(
+            name: "APIGatewayV2Server",
+            dependencies: [
+                .product(name: "AWSLambdaRuntime", package: "swift-aws-lambda-runtime"),
+                .product(name: "AWSLambdaEvents", package: "swift-aws-lambda-events"),
+                .product(name: "Hummingbird", package: "hummingbird"),
+                .product(name: "Logging", package: "swift-log"),
+                .product(name: "AsyncHTTPClient", package: "async-http-client"),
+            ]
         ),
     ]
 )
