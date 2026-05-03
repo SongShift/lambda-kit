@@ -23,6 +23,16 @@ struct User: Codable {
 }
 ```
 
+The string argument is the table name on the wire. Omit it to use the
+Swift type name as the table name:
+
+```swift
+@Table                       // table name is "User"
+struct User: Codable {
+    @PartitionKey var id: String
+}
+```
+
 The macro generates four things:
 
   * A ``DynamoModel`` conformance.
@@ -108,9 +118,10 @@ than `User.$email == "..."`.
 ## Encoding
 
 Models are encoded and decoded via `Codable`. The `DynamoQueriesSoto`
-adapter bridges through `JSONEncoder`/`JSONDecoder` for now, so any
-`Codable` shape that round-trips through JSON works (lists, nested maps,
-optional fields, dates as epoch-seconds via ``DynamoEncodable``).
+adapter uses Soto's native `DynamoDBEncoder` / `DynamoDBDecoder` (with
+`secondsSince1970` date strategy), so values land in their native
+DynamoDB attribute types — strings, numbers, booleans, lists, and nested
+maps — rather than going through a JSON intermediate.
 
 If you need a property name on the wire that differs from the Swift
 property name, prefer ``Attribute(_:)`` over `CodingKeys` — the

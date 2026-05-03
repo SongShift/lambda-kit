@@ -11,13 +11,22 @@
 ///         var displayName: String
 ///     }
 ///
-/// The string argument is the table name on the wire — DynamoQueries does
-/// not derive it from the Swift type name.
+/// The string argument is the table name on the wire. Omit it to use the
+/// Swift type name as the table name:
+///
+///     @Table
+///     struct User: Codable { ... } // table name is "User"
 ///
 /// Requires exactly one ``PartitionKey()`` property. ``SortKey()``,
 /// ``Attribute(_:)``, and ``Index(_:partitionKey:sortKey:)`` are all optional.
 @attached(extension, conformances: DynamoModel, names: named(_table), named(Attributes), named(Columns), named(columns), arbitrary)
 public macro Table(_ name: String) = #externalMacro(module: "DynamoQueriesMacros", type: "TableMacro")
+
+/// Lifts a `Codable` struct into a typed DynamoDB table model, using the
+/// Swift type name as the table name. See ``Table(_:)`` for the customizable
+/// form.
+@attached(extension, conformances: DynamoModel, names: named(_table), named(Attributes), named(Columns), named(columns), arbitrary)
+public macro Table() = #externalMacro(module: "DynamoQueriesMacros", type: "TableMacro")
 
 /// Marks a property as the table's partition key (DynamoDB hash key).
 ///

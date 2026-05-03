@@ -103,6 +103,7 @@ try await TransactWriteInput {
 ### Declaring tables
 
 - ``Table(_:)``
+- ``Table()``
 - ``PartitionKey()``
 - ``SortKey()``
 - ``Attribute(_:)``

@@ -10,22 +10,26 @@ public struct TableMacro: ExtensionMacro {
         conformingTo protocols: [TypeSyntax],
         in context: some MacroExpansionContext
     ) throws -> [ExtensionDeclSyntax] {
-        // Extract table name from @Table("tableName")
-        guard let arguments = node.arguments?.as(LabeledExprListSyntax.self),
-              let firstArgument = arguments.first,
-              let stringLiteral = firstArgument.expression.as(StringLiteralExprSyntax.self),
-              let segment = stringLiteral.segments.first?.as(StringSegmentSyntax.self)
-        else {
-            throw DiagnosticError("@Table requires a string literal argument")
-        }
-        let tableName = segment.content.text
-
         // Must be attached to a struct
         guard let structDecl = declaration.as(StructDeclSyntax.self) else {
             throw DiagnosticError("@Table can only be applied to structs")
         }
 
         let typeName = type.trimmedDescription
+
+        // Extract table name from @Table("tableName"), or fall back to the struct's name.
+        let tableName: String
+        if let arguments = node.arguments?.as(LabeledExprListSyntax.self),
+           let firstArgument = arguments.first {
+            guard let stringLiteral = firstArgument.expression.as(StringLiteralExprSyntax.self),
+                  let segment = stringLiteral.segments.first?.as(StringSegmentSyntax.self)
+            else {
+                throw DiagnosticError("@Table name must be a string literal")
+            }
+            tableName = segment.content.text
+        } else {
+            tableName = typeName
+        }
 
         // Collect property metadata
         var partitionKeyName: String?
