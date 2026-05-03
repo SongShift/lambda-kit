@@ -8,6 +8,7 @@ import Foundation
 import HTTPTypes
 import Hummingbird
 import NIOCore
+import NIOFoundationCompat
 
 public struct MutableAPIGatewayV2Request: Encodable, Sendable {
     public var version: String = "2.0"

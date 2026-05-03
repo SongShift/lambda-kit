@@ -9,7 +9,7 @@ import Foundation
 import HTTPTypes
 import Hummingbird
 import Logging
-import NIOCore
+import NIOFoundationCompat
 
 /// Local development HTTP server that proxies requests to a Lambda local server.
 /// Accepts real HTTP requests, translates them to `APIGatewayV2Request` JSON,
@@ -86,7 +86,7 @@ public struct APIGatewayV2Server: Sendable {
         let response = try await httpClient.execute(httpRequest, timeout: .seconds(30))
         let responseBody = try await response.body.collect(upTo: 10 * 1024 * 1024)
 
-        let apiResponse = try JSONDecoder().decode(APIGatewayV2Response.self, from: responseBody)
+        let apiResponse = try JSONDecoder().decode(APIGatewayV2Response.self, from: Data(buffer: responseBody))
         return apiResponse.toHummingbirdResponse()
     }
 }
