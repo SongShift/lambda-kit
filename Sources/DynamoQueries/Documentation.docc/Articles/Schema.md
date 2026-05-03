@@ -65,14 +65,14 @@ struct Profile: Codable {
 
 `@Index(_:partitionKey:sortKey:)` declares a secondary index. The macro
 generates a typed ``Index`` value at `Self.Indexes.<name>` that you pass to
-``QueryInput/on(_:)`` (or the scan equivalent) to retarget a query at the
+``QueryInput/usingIndex(_:)`` (or the scan equivalent) to retarget a query at the
 index:
 
 ```swift
 let page = try await User.query { u in
     Key { u.email == "ada@example.com" }
 }
-.on(User.Indexes.emailIndex)
+.usingIndex(User.Indexes.emailIndex)
 .execute(using: client)
 ```
 

@@ -45,7 +45,7 @@ public struct ScanInput<Model: DynamoModel>: Sendable {
 // MARK: - Modifiers
 
 extension ScanInput {
-    public func on(_ index: Index<Model>) -> Self {
+    public func usingIndex(_ index: Index<Model>) -> Self {
         var copy = self
         copy.indexName = index.name
         return copy

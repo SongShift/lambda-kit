@@ -86,7 +86,7 @@ extension DynamoModel {
     /// produce `Expression` rather than `KeyCondition` — so they fail to
     /// compile inside `Key { ... }` while still working in `Filter { ... }`.
     ///
-    /// Add modifiers (`.on(_:)`, `.limit(_:)`, `.consistentRead()`,
+    /// Add modifiers (`.usingIndex(_:)`, `.limit(_:)`, `.consistentRead()`,
     /// `.scanIndexForward(_:)`, `.startToken(_:)`) and finish with
     /// `.execute(using:)` or `.executeAll(using:)`.
     public static func query(

@@ -9,7 +9,7 @@ Every operation against DynamoQueries follows the same shape:
   1. Build an input value via a static method on your model
      (``DynamoModel/query(_:)``, ``DynamoModel/scan(_:)``,
      ``DynamoModel/get(partitionKey:)``, etc.).
-  2. Configure it with chainable modifiers (`.on(_:)`, `.limit(_:)`,
+  2. Configure it with chainable modifiers (`.usingIndex(_:)`, `.limit(_:)`,
      `.consistentRead()`, …).
   3. Call `.execute(using: client)` to fire the request.
 
@@ -38,7 +38,7 @@ let page = try await Order.query { o in
 
 Common modifiers:
 
-  * ``QueryInput/on(_:)`` — run the query against a secondary index.
+  * ``QueryInput/usingIndex(_:)`` — run the query against a secondary index.
   * ``QueryInput/limit(_:)`` — cap per-request page size.
   * ``QueryInput/consistentRead(_:)`` — strongly consistent reads (doubles
     read-capacity cost; rejected on global secondary indexes).

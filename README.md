@@ -279,7 +279,7 @@ try await Order.query { o in
 try await Order.query { o in
     Key { o.customerID == "cust-1" }
 }
-.on(Order.Indexes.byCreatedAt)
+.usingIndex(Order.Indexes.byCreatedAt)
 .scanIndexForward(false)
 .limit(50)
 .execute(using: client)

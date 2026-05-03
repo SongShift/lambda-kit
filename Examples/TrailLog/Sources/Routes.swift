@@ -63,7 +63,7 @@ func registerRoutes(on builder: HTTPRouterBuilder, using db: any DynamoClient) {
         let page = try await Hike.query { hike in
             Key { hike.hikerId == hikerID }
         }
-        .on(Hike.Indexes.hikerCompletedAtIndex)
+        .usingIndex(Hike.Indexes.hikerCompletedAtIndex)
         .scanIndexForward(false)
         .limit(20)
         .startToken(cursor)

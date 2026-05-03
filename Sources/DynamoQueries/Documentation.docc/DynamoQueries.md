@@ -74,7 +74,7 @@ let page = try await Order.query { o in
         o.total > 100
     }
 }
-.on(Order.Indexes.byCreatedAt)
+.usingIndex(Order.Indexes.byCreatedAt)
 .scanIndexForward(false)
 .limit(20)
 .execute(using: client)

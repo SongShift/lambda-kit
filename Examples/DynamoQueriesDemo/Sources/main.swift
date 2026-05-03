@@ -126,7 +126,7 @@ print("\n— Query: GSI, descending, limit -————————————
 _ = try await Hiker.query { hiker in
     Key { hiker.email == "ada@example.com" }
 }
-.on(Hiker.Indexes.emailIndex)
+.usingIndex(Hiker.Indexes.emailIndex)
 .scanIndexForward(false)
 .limit(10)
 .execute(using: client)

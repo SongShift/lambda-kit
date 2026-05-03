@@ -72,7 +72,7 @@ struct QueryEquivalenceTests {
                 column.isPrivate.doesNotExist || column.isPrivate != true
             }
         }
-        .on(TrailRoute.Indexes.hikerCreatedAtIndex)
+        .usingIndex(TrailRoute.Indexes.hikerCreatedAtIndex)
         .scanIndexForward(false)
         .execute(using: client)
         let dslSoto = try #require(await client.lastQueryInput(for: TrailRoute.self)).toSotoQueryInput()
@@ -101,7 +101,7 @@ struct QueryEquivalenceTests {
                 column.isArchived == 0
             }
         }
-        .on(MapImport.Indexes.hikerArchivedCreatedAtIndex)
+        .usingIndex(MapImport.Indexes.hikerArchivedCreatedAtIndex)
         .execute(using: client)
         let dslSoto = try #require(await client.lastQueryInput(for: MapImport.self)).toSotoQueryInput()
 
@@ -128,7 +128,7 @@ struct QueryEquivalenceTests {
                 column.isPinned == 0
             }
         }
-        .on(ShareLink.Indexes.creatorPublicProfileIndex)
+        .usingIndex(ShareLink.Indexes.creatorPublicProfileIndex)
         .limit(25)
         .execute(using: client)
         let dslSoto = try #require(await client.lastQueryInput(for: ShareLink.self)).toSotoQueryInput()
@@ -154,7 +154,7 @@ struct QueryEquivalenceTests {
             Key { column.hikerId == "hiker-1" }
             Filter { column.tags.contains("summit") }
         }
-        .on(TrailRoute.Indexes.hikerCreatedAtIndex)
+        .usingIndex(TrailRoute.Indexes.hikerCreatedAtIndex)
         .execute(using: client)
         let dslSoto = try #require(await client.lastQueryInput(for: TrailRoute.self)).toSotoQueryInput()
 
@@ -179,7 +179,7 @@ struct QueryEquivalenceTests {
             Key { column.hikerId == "hiker-1" }
             Filter { column.lastSeen > cutoff }
         }
-        .on(TrailRoute.Indexes.hikerCreatedAtIndex)
+        .usingIndex(TrailRoute.Indexes.hikerCreatedAtIndex)
         .execute(using: client)
         let dslSoto = try #require(await client.lastQueryInput(for: TrailRoute.self)).toSotoQueryInput()
 
@@ -203,7 +203,7 @@ struct QueryEquivalenceTests {
             Key { column.hikerId == "hiker-1" }
             Filter { column.nameLower.size > 32 }
         }
-        .on(TrailRoute.Indexes.hikerCreatedAtIndex)
+        .usingIndex(TrailRoute.Indexes.hikerCreatedAtIndex)
         .execute(using: client)
         let dslSoto = try #require(await client.lastQueryInput(for: TrailRoute.self)).toSotoQueryInput()
 
@@ -227,7 +227,7 @@ struct QueryEquivalenceTests {
             Key { column.hikerId == "hiker-1" }
             Filter { column.tags.size >= 3 }
         }
-        .on(TrailRoute.Indexes.hikerCreatedAtIndex)
+        .usingIndex(TrailRoute.Indexes.hikerCreatedAtIndex)
         .execute(using: client)
         let dslSoto = try #require(await client.lastQueryInput(for: TrailRoute.self)).toSotoQueryInput()
 
@@ -251,7 +251,7 @@ struct QueryEquivalenceTests {
             Key { column.hikerId == "hiker-1" }
             Filter { column.aliases.size.between(1, and: 10) }
         }
-        .on(TrailRoute.Indexes.hikerCreatedAtIndex)
+        .usingIndex(TrailRoute.Indexes.hikerCreatedAtIndex)
         .execute(using: client)
         let dslSoto = try #require(await client.lastQueryInput(for: TrailRoute.self)).toSotoQueryInput()
 
@@ -298,7 +298,7 @@ struct QueryEquivalenceTests {
             Key { column.hikerId == "hiker-1" }
             Filter { column.aliases.contains("Mist Falls") }
         }
-        .on(TrailRoute.Indexes.hikerCreatedAtIndex)
+        .usingIndex(TrailRoute.Indexes.hikerCreatedAtIndex)
         .execute(using: client)
         let dslSoto = try #require(await client.lastQueryInput(for: TrailRoute.self)).toSotoQueryInput()
 
@@ -661,7 +661,7 @@ struct ProjectionTests {
         _ = try await TrailRoute.query { column in
             Key { column.hikerId == "hiker-1" }
         }
-        .on(TrailRoute.Indexes.hikerCreatedAtIndex)
+        .usingIndex(TrailRoute.Indexes.hikerCreatedAtIndex)
         .project(TrailRoute.$routeId, TrailRoute.$nameLower)
         .execute(using: client)
         let dslSoto = try #require(await client.lastQueryInput(for: TrailRoute.self)).toSotoQueryInput()
@@ -729,7 +729,7 @@ struct ProjectionTests {
             Key { column.hikerId == "hiker-1" }
             Filter { column.tags.contains("summit") }
         }
-        .on(TrailRoute.Indexes.hikerCreatedAtIndex)
+        .usingIndex(TrailRoute.Indexes.hikerCreatedAtIndex)
         .project(TrailRoute.$routeId, TrailRoute.$nameLower)
         .execute(using: client)
         let dslSoto = try #require(await client.lastQueryInput(for: TrailRoute.self)).toSotoQueryInput()

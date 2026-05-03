@@ -65,7 +65,7 @@ public macro Attribute(_ name: String) = #externalMacro(module: "DynamoQueriesMa
 /// Declares a secondary index on a `@Table` struct.
 ///
 /// Generates a typed `Indexes.<name>` static instance the query/scan APIs
-/// accept via ``QueryInput/on(_:)``:
+/// accept via ``QueryInput/usingIndex(_:)``:
 ///
 ///     @Table("Users")
 ///     @Index("emailIndex", partitionKey: "email")
@@ -77,7 +77,7 @@ public macro Attribute(_ name: String) = #externalMacro(module: "DynamoQueriesMa
 ///     try await User.query { u in
 ///         Key { u.email == "ada@example.com" }
 ///     }
-///     .on(User.Indexes.emailIndex)
+///     .usingIndex(User.Indexes.emailIndex)
 ///     .execute(using: client)
 ///
 /// Multiple `@Index` declarations are supported on a single table — the

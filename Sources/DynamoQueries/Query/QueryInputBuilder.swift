@@ -1,7 +1,7 @@
 /// A compiled DynamoDB Query request, parameterized by the model it returns.
 ///
 /// `QueryInput` is built by `Model.query { Key { ... } }` and configured
-/// through chainable modifiers (`.on(_:)`, `.limit(_:)`, `.consistentRead()`,
+/// through chainable modifiers (`.usingIndex(_:)`, `.limit(_:)`, `.consistentRead()`,
 /// `.scanIndexForward(_:)`, `.startToken(_:)`). Calling `.execute(using:)` is
 /// what fires the request.
 public struct QueryInput<Model: DynamoModel>: Sendable {
@@ -57,7 +57,7 @@ public struct QueryInput<Model: DynamoModel>: Sendable {
 
 extension QueryInput {
     /// Run the query against a secondary index instead of the base table.
-    public func on(_ index: Index<Model>) -> Self {
+    public func usingIndex(_ index: Index<Model>) -> Self {
         var copy = self
         copy.indexName = index.name
         return copy
