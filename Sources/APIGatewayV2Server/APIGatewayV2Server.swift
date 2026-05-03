@@ -76,7 +76,6 @@ public struct APIGatewayV2Server: Sendable {
         }
 
         let requestJSON = try JSONEncoder().encode(builder)
-        self.logger.info("Request: \(String(data: requestJSON, encoding: .utf8) ?? "")")
 
         var httpRequest = HTTPClientRequest(url: "http://\(lambdaHost):\(lambdaPort)/invoke")
         httpRequest.method = .POST
