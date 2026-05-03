@@ -1,13 +1,13 @@
 public struct QueryParts: Sendable {
-    public let keyConditions: [Expression]
+    public let keyConditions: [KeyCondition]
     public let filterConditions: [Expression]
 }
 
 public struct Key: Sendable {
-    public let expressions: [Expression]
+    public let conditions: [KeyCondition]
 
-    public init(@KeyConditionBuilder _ build: () -> [Expression]) {
-        self.expressions = build()
+    public init(@KeyConditionBuilder _ build: () -> [KeyCondition]) {
+        self.conditions = build()
     }
 }
 
@@ -22,10 +22,10 @@ public struct Filter: Sendable {
 @resultBuilder
 public enum QueryBuilder {
     public static func buildBlock(_ key: Key) -> QueryParts {
-        QueryParts(keyConditions: key.expressions, filterConditions: [])
+        QueryParts(keyConditions: key.conditions, filterConditions: [])
     }
 
     public static func buildBlock(_ key: Key, _ filter: Filter) -> QueryParts {
-        QueryParts(keyConditions: key.expressions, filterConditions: filter.expressions)
+        QueryParts(keyConditions: key.conditions, filterConditions: filter.expressions)
     }
 }

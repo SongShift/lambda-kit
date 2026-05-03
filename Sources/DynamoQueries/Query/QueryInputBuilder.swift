@@ -199,11 +199,12 @@ public struct QueryPageSequence<Model: DynamoModel>: AsyncSequence {
 public enum QueryInputBuilder {
     public static func build<Model: DynamoModel>(
         for type: Model.Type,
-        keyConditions: [Expression],
+        keyConditions: [KeyCondition],
         filterConditions: [Expression] = []
     ) -> QueryInput<Model> {
         var allocator = PlaceholderAllocator()
-        let keyExpression = ExpressionCompiler.compile(keyConditions, allocator: &allocator)
+        let keyExpressions = keyConditions.map(\.expression)
+        let keyExpression = ExpressionCompiler.compile(keyExpressions, allocator: &allocator)
         let filterExpression = filterConditions.isEmpty
             ? nil
             : ExpressionCompiler.compile(filterConditions, allocator: &allocator)

@@ -1,5 +1,9 @@
 @resultBuilder
 public struct FilterBuilder {
+    public static func buildExpression(_ expression: Expression) -> Expression {
+        expression
+    }
+
     public static func buildBlock(_ components: Expression...) -> [Expression] {
         Array(components)
     }

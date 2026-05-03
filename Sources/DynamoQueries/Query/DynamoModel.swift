@@ -81,10 +81,14 @@ public protocol DynamoClient: Sendable {
 extension DynamoModel {
     /// Build a `QueryInput`. The closure receives a `Columns` proxy bound
     /// to `Self.columns`, so call sites can write `column.observerId`
-    /// instead of `Self.$observerId`. Add modifiers (`.on(_:)`,
-    /// `.limit(_:)`, `.consistentRead()`, `.scanIndexForward(_:)`,
-    /// `.startToken(_:)`) and finish with `.execute(using:)` or
-    /// `.executeAll(using:)`.
+    /// instead of `Self.$observerId`. Operators DynamoDB rejects in a key
+    /// condition (`contains`, `!=`, existence checks, `&&` / `||` / `!`)
+    /// produce `Expression` rather than `KeyCondition` — so they fail to
+    /// compile inside `Key { ... }` while still working in `Filter { ... }`.
+    ///
+    /// Add modifiers (`.on(_:)`, `.limit(_:)`, `.consistentRead()`,
+    /// `.scanIndexForward(_:)`, `.startToken(_:)`) and finish with
+    /// `.execute(using:)` or `.executeAll(using:)`.
     public static func query(
         @QueryBuilder _ build: (Columns) -> QueryParts
     ) -> QueryInput<Self> {
