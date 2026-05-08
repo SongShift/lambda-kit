@@ -335,6 +335,85 @@ struct QueryEquivalenceTests {
         )
         expectEquivalent(dslSoto, reference)
     }
+
+    @Test("Query: top-level if-Filter is included when condition is true")
+    func queryTopLevelIfFilterIncluded() async throws {
+        let client = RecordingDynamoClient()
+        let includeFavoritesOnly = true
+        _ = try await TrailRoute.query { column in
+            Key { column.hikerId == "hiker-1" }
+            if includeFavoritesOnly {
+                Filter { column.isFavorite == true }
+            }
+        }
+        .usingIndex(TrailRoute.Indexes.hikerCreatedAtIndex)
+        .execute(using: client)
+        let dslSoto = try #require(await client.lastQueryInput(for: TrailRoute.self)).toSotoQueryInput()
+
+        let reference = DynamoDB.QueryInput(
+            expressionAttributeValues: [
+                ":hikerId": .s("hiker-1"),
+                ":trueValue": .bool(true),
+            ],
+            filterExpression: "isFavorite = :trueValue",
+            indexName: "hikerCreatedAtIndex",
+            keyConditionExpression: "hikerId = :hikerId",
+            tableName: "TrailRoutes"
+        )
+        expectEquivalent(dslSoto, reference)
+    }
+
+    @Test("Query: top-level if-Filter is omitted when condition is false")
+    func queryTopLevelIfFilterOmitted() async throws {
+        let client = RecordingDynamoClient()
+        let includeFavoritesOnly = false
+        _ = try await TrailRoute.query { column in
+            Key { column.hikerId == "hiker-1" }
+            if includeFavoritesOnly {
+                Filter { column.isFavorite == true }
+            }
+        }
+        .usingIndex(TrailRoute.Indexes.hikerCreatedAtIndex)
+        .execute(using: client)
+        let dslSoto = try #require(await client.lastQueryInput(for: TrailRoute.self)).toSotoQueryInput()
+
+        let reference = DynamoDB.QueryInput(
+            expressionAttributeValues: [":hikerId": .s("hiker-1")],
+            indexName: "hikerCreatedAtIndex",
+            keyConditionExpression: "hikerId = :hikerId",
+            tableName: "TrailRoutes"
+        )
+        expectEquivalent(dslSoto, reference)
+    }
+
+    @Test("Query: top-level if/else picks the correct Filter branch")
+    func queryTopLevelIfElseFilter() async throws {
+        let client = RecordingDynamoClient()
+        let publicOnly = false
+        _ = try await TrailRoute.query { column in
+            Key { column.hikerId == "hiker-1" }
+            if publicOnly {
+                Filter { column.isPrivate == false }
+            } else {
+                Filter { column.isFavorite == true }
+            }
+        }
+        .usingIndex(TrailRoute.Indexes.hikerCreatedAtIndex)
+        .execute(using: client)
+        let dslSoto = try #require(await client.lastQueryInput(for: TrailRoute.self)).toSotoQueryInput()
+
+        let reference = DynamoDB.QueryInput(
+            expressionAttributeValues: [
+                ":hikerId": .s("hiker-1"),
+                ":trueValue": .bool(true),
+            ],
+            filterExpression: "isFavorite = :trueValue",
+            indexName: "hikerCreatedAtIndex",
+            keyConditionExpression: "hikerId = :hikerId",
+            tableName: "TrailRoutes"
+        )
+        expectEquivalent(dslSoto, reference)
+    }
 }
 
 // MARK: - GetItem
