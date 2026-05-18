@@ -87,7 +87,11 @@ private func resolveProjection(
 
 extension DynamoQueries.QueryInput {
     /// Converts a DynamoQueries `QueryInput` to Soto's `DynamoDB.QueryInput`.
-    public func toSotoQueryInput() -> DynamoDB.QueryInput {
+    ///
+    /// Pass `tableNameOverride` to substitute a different on-the-wire table
+    /// name than the one the input was built with — `SotoDynamoClient` uses
+    /// this to apply its configured environment suffix.
+    public func toSotoQueryInput(tableNameOverride: String? = nil) -> DynamoDB.QueryInput {
         let (projection, names) = resolveProjection(
             attributes: projectionAttributes,
             existingNames: expressionAttributeNames
@@ -106,13 +110,13 @@ extension DynamoQueries.QueryInput {
             projectionExpression: projection,
             scanIndexForward: scanIndexForward,
             select: selectCountOnly ? .count : nil,
-            tableName: tableName
+            tableName: tableNameOverride ?? tableName
         )
     }
 }
 
 extension DynamoQueries.ScanInput {
-    public func toSotoScanInput() -> DynamoDB.ScanInput {
+    public func toSotoScanInput(tableNameOverride: String? = nil) -> DynamoDB.ScanInput {
         let (projection, names) = resolveProjection(
             attributes: projectionAttributes,
             existingNames: expressionAttributeNames
@@ -128,13 +132,13 @@ extension DynamoQueries.ScanInput {
             limit: limit.map { Int($0) },
             projectionExpression: projection,
             select: selectCountOnly ? .count : nil,
-            tableName: tableName
+            tableName: tableNameOverride ?? tableName
         )
     }
 }
 
 extension DynamoQueries.GetItemInput {
-    public func toSotoGetItemInput() -> DynamoDB.GetItemInput {
+    public func toSotoGetItemInput(tableNameOverride: String? = nil) -> DynamoDB.GetItemInput {
         let (projection, names) = resolveProjection(
             attributes: projectionAttributes,
             existingNames: [:]
@@ -144,13 +148,13 @@ extension DynamoQueries.GetItemInput {
             expressionAttributeNames: names.isEmpty ? nil : names,
             key: key.mapValues { $0.toSotoAttributeValue() },
             projectionExpression: projection,
-            tableName: tableName
+            tableName: tableNameOverride ?? tableName
         )
     }
 }
 
 extension DynamoQueries.DeleteItemInput {
-    public func toSotoDeleteItemInput() -> DynamoDB.DeleteItemInput {
+    public func toSotoDeleteItemInput(tableNameOverride: String? = nil) -> DynamoDB.DeleteItemInput {
         DynamoDB.DeleteItemInput(
             conditionExpression: conditionExpression,
             expressionAttributeNames: expressionAttributeNames.isEmpty
@@ -159,13 +163,13 @@ extension DynamoQueries.DeleteItemInput {
                 ? nil : expressionAttributeValues.mapValues { $0.toSotoAttributeValue() },
             key: key.mapValues { $0.toSotoAttributeValue() },
             returnValuesOnConditionCheckFailure: returnPriorOnConflict ? .allOld : nil,
-            tableName: tableName
+            tableName: tableNameOverride ?? tableName
         )
     }
 }
 
 extension DynamoQueries.UpdateInput {
-    public func toSotoUpdateItemInput() -> DynamoDB.UpdateItemInput {
+    public func toSotoUpdateItemInput(tableNameOverride: String? = nil) -> DynamoDB.UpdateItemInput {
         DynamoDB.UpdateItemInput(
             conditionExpression: conditionExpression,
             expressionAttributeNames: expressionAttributeNames.isEmpty
@@ -174,14 +178,14 @@ extension DynamoQueries.UpdateInput {
                 ? nil : expressionAttributeValues.mapValues { $0.toSotoAttributeValue() },
             key: key.mapValues { $0.toSotoAttributeValue() },
             returnValuesOnConditionCheckFailure: returnPriorOnConflict ? .allOld : nil,
-            tableName: tableName,
+            tableName: tableNameOverride ?? tableName,
             updateExpression: updateExpression
         )
     }
 }
 
 extension DynamoQueries.UpdateReturning {
-    public func toSotoUpdateItemInput() -> DynamoDB.UpdateItemInput {
+    public func toSotoUpdateItemInput(tableNameOverride: String? = nil) -> DynamoDB.UpdateItemInput {
         let underlying = input
         return DynamoDB.UpdateItemInput(
             conditionExpression: underlying.conditionExpression,
@@ -192,7 +196,7 @@ extension DynamoQueries.UpdateReturning {
             key: underlying.key.mapValues { $0.toSotoAttributeValue() },
             returnValues: returnValues.toSotoReturnValue(),
             returnValuesOnConditionCheckFailure: underlying.returnPriorOnConflict ? .allOld : nil,
-            tableName: underlying.tableName,
+            tableName: tableNameOverride ?? underlying.tableName,
             updateExpression: underlying.updateExpression
         )
     }
@@ -212,7 +216,7 @@ extension DynamoQueries.UpdateReturnValues {
 extension DynamoQueries.PutItemInput {
     /// Builds the Soto request for this put, encoding the model item via
     /// the adapter's JSON-bridging encoder.
-    public func toSotoPutItemInput() throws -> DynamoDB.PutItemInput {
+    public func toSotoPutItemInput(tableNameOverride: String? = nil) throws -> DynamoDB.PutItemInput {
         let encodedItem = try DynamoEncoder.encode(item)
         return DynamoDB.PutItemInput(
             conditionExpression: conditionExpression,
@@ -222,7 +226,7 @@ extension DynamoQueries.PutItemInput {
                 ? nil : expressionAttributeValues.mapValues { $0.toSotoAttributeValue() },
             item: encodedItem,
             returnValuesOnConditionCheckFailure: returnPriorOnConflict ? .allOld : nil,
-            tableName: tableName
+            tableName: tableNameOverride ?? tableName
         )
     }
 }
@@ -231,15 +235,34 @@ extension DynamoQueries.PutItemInput {
 
 public struct SotoDynamoClient: DynamoClient {
     private let database: DynamoDB
+    private let tableNameSuffix: String
 
-    public init(database: DynamoDB) {
+    /// Creates a client.
+    ///
+    /// - Parameters:
+    ///   - database: The underlying Soto `DynamoDB` service.
+    ///   - tableNameSuffix: Appended to every model's logical table name
+    ///     before the request hits the wire. Use this to route an entire
+    ///     deploy at a stage-specific table set — for example, pass
+    ///     `"-prod"` so a model declared as `@Table("Hikes")` reads and
+    ///     writes `"Hikes-prod"`. Default `""` is a no-op.
+    public init(database: DynamoDB, tableNameSuffix: String = "") {
         self.database = database
+        self.tableNameSuffix = tableNameSuffix
+    }
+
+    /// Applies the configured suffix to a logical table name. Public so
+    /// callers building bespoke Soto requests can match the adapter's
+    /// rewrite.
+    public func resolveTableName(_ name: String) -> String {
+        name + tableNameSuffix
     }
 
     public func execute<Model: DynamoModel>(
         _ input: DynamoQueries.QueryInput<Model>
     ) async throws -> QueryPage<Model> {
-        let output = try await database.query(input.toSotoQueryInput())
+        let resolved = resolveTableName(input.tableName)
+        let output = try await database.query(input.toSotoQueryInput(tableNameOverride: resolved))
         let items = try (output.items ?? []).map { item in
             try DynamoDecoder.decode(Model.self, from: item)
         }
@@ -252,7 +275,8 @@ public struct SotoDynamoClient: DynamoClient {
     public func getItem<Model: DynamoModel>(
         _ input: DynamoQueries.GetItemInput<Model>
     ) async throws -> Model? {
-        let output = try await database.getItem(input.toSotoGetItemInput())
+        let resolved = resolveTableName(input.tableName)
+        let output = try await database.getItem(input.toSotoGetItemInput(tableNameOverride: resolved))
         guard let item = output.item else { return nil }
         return try DynamoDecoder.decode(Model.self, from: item)
     }
@@ -260,9 +284,10 @@ public struct SotoDynamoClient: DynamoClient {
     public func putItem<Model: DynamoModel>(
         _ input: DynamoQueries.PutItemInput<Model>
     ) async throws {
-        let sotoInput = try input.toSotoPutItemInput()
+        let resolved = resolveTableName(input.tableName)
+        let sotoInput = try input.toSotoPutItemInput(tableNameOverride: resolved)
         try await translatingConditionalCheckFailures(
-            table: input.tableName,
+            table: resolved,
             as: Model.self
         ) {
             _ = try await self.database.putItem(sotoInput)
@@ -272,23 +297,25 @@ public struct SotoDynamoClient: DynamoClient {
     public func updateItem<Model: DynamoModel>(
         _ input: DynamoQueries.UpdateInput<Model>
     ) async throws {
+        let resolved = resolveTableName(input.tableName)
         try await translatingConditionalCheckFailures(
-            table: input.tableName,
+            table: resolved,
             as: Model.self
         ) {
-            _ = try await self.database.updateItem(input.toSotoUpdateItemInput())
+            _ = try await self.database.updateItem(input.toSotoUpdateItemInput(tableNameOverride: resolved))
         }
     }
 
     public func updateItemReturning<Model: DynamoModel>(
         _ input: DynamoQueries.UpdateReturning<Model>
     ) async throws -> Model? {
+        let resolved = resolveTableName(input.input.tableName)
         var result: Model?
         try await translatingConditionalCheckFailures(
-            table: input.input.tableName,
+            table: resolved,
             as: Model.self
         ) {
-            let output = try await self.database.updateItem(input.toSotoUpdateItemInput())
+            let output = try await self.database.updateItem(input.toSotoUpdateItemInput(tableNameOverride: resolved))
             if let attributes = output.attributes {
                 result = try? DynamoDecoder.decode(Model.self, from: attributes)
             }
@@ -299,18 +326,20 @@ public struct SotoDynamoClient: DynamoClient {
     public func deleteItem<Model: DynamoModel>(
         _ input: DynamoQueries.DeleteItemInput<Model>
     ) async throws {
+        let resolved = resolveTableName(input.tableName)
         try await translatingConditionalCheckFailures(
-            table: input.tableName,
+            table: resolved,
             as: Model.self
         ) {
-            _ = try await self.database.deleteItem(input.toSotoDeleteItemInput())
+            _ = try await self.database.deleteItem(input.toSotoDeleteItemInput(tableNameOverride: resolved))
         }
     }
 
     public func scan<Model: DynamoModel>(
         _ input: DynamoQueries.ScanInput<Model>
     ) async throws -> QueryPage<Model> {
-        let output = try await database.scan(input.toSotoScanInput())
+        let resolved = resolveTableName(input.tableName)
+        let output = try await database.scan(input.toSotoScanInput(tableNameOverride: resolved))
         let items = try (output.items ?? []).map { item in
             try DynamoDecoder.decode(Model.self, from: item)
         }
@@ -323,9 +352,10 @@ public struct SotoDynamoClient: DynamoClient {
     public func count<Model: DynamoModel>(
         _ input: DynamoQueries.QueryInput<Model>
     ) async throws -> CountPage {
+        let resolved = resolveTableName(input.tableName)
         var withCount = input
         withCount.selectCountOnly = true
-        let output = try await database.query(withCount.toSotoQueryInput())
+        let output = try await database.query(withCount.toSotoQueryInput(tableNameOverride: resolved))
         let nextToken = output.lastEvaluatedKey.map { key in
             PaginationToken(key: key.mapValues { $0.toDynamoValue() })
         }
@@ -340,6 +370,7 @@ public struct SotoDynamoClient: DynamoClient {
         _ items: [DynamoQueries.TransactWriteItem]
     ) async throws {
         let sotoItems = try items.map { item -> DynamoDB.TransactWriteItem in
+            let resolved = resolveTableName(item.tableName)
             switch item.kind {
             case .put(let model, let condition):
                 let encoded = try DynamoEncoder.encode(model)
@@ -348,7 +379,7 @@ public struct SotoDynamoClient: DynamoClient {
                     expressionAttributeNames: nonEmpty(condition?.attributeNames),
                     expressionAttributeValues: nonEmpty(condition?.attributeValues),
                     item: encoded,
-                    tableName: item.tableName
+                    tableName: resolved
                 ))
             case .update(let key, let updateExpr, let condition, let names, let values):
                 return .update(DynamoDB.Update(
@@ -357,7 +388,7 @@ public struct SotoDynamoClient: DynamoClient {
                     expressionAttributeValues: values.isEmpty
                         ? nil : values.mapValues { $0.toSotoAttributeValue() },
                     key: key.mapValues { $0.toSotoAttributeValue() },
-                    tableName: item.tableName,
+                    tableName: resolved,
                     updateExpression: updateExpr
                 ))
             case .delete(let key, let condition):
@@ -366,7 +397,7 @@ public struct SotoDynamoClient: DynamoClient {
                     expressionAttributeNames: nonEmpty(condition?.attributeNames),
                     expressionAttributeValues: nonEmpty(condition?.attributeValues),
                     key: key.mapValues { $0.toSotoAttributeValue() },
-                    tableName: item.tableName
+                    tableName: resolved
                 ))
             case .conditionCheck(let key, let condition):
                 return .conditionCheck(DynamoDB.ConditionCheck(
@@ -374,7 +405,7 @@ public struct SotoDynamoClient: DynamoClient {
                     expressionAttributeNames: nonEmpty(condition.attributeNames),
                     expressionAttributeValues: nonEmpty(condition.attributeValues),
                     key: key.mapValues { $0.toSotoAttributeValue() },
-                    tableName: item.tableName
+                    tableName: resolved
                 ))
             }
         }
@@ -387,6 +418,7 @@ public struct SotoDynamoClient: DynamoClient {
     public func batchWrite<Model: DynamoModel>(
         _ input: DynamoQueries.BatchWriteInput<Model>
     ) async throws {
+        let resolved = resolveTableName(input.tableName)
         let putRequests = try input.putItems.map { item -> DynamoDB.WriteRequest in
             let encoded = try DynamoEncoder.encode(item)
             return DynamoDB.WriteRequest(putRequest: DynamoDB.PutRequest(item: encoded))
@@ -401,16 +433,17 @@ public struct SotoDynamoClient: DynamoClient {
         var pending = putRequests + deleteRequests
         while !pending.isEmpty {
             let soto = DynamoDB.BatchWriteItemInput(
-                requestItems: [input.tableName: pending]
+                requestItems: [resolved: pending]
             )
             let output = try await database.batchWriteItem(soto)
-            pending = output.unprocessedItems?[input.tableName] ?? []
+            pending = output.unprocessedItems?[resolved] ?? []
         }
     }
 
     public func batchGet<Model: DynamoModel>(
         _ input: DynamoQueries.BatchGetInput<Model>
     ) async throws -> [Model] {
+        let resolved = resolveTableName(input.tableName)
         var pendingKeys = input.keys
         var collected: [Model] = []
         let (projection, names) = resolveProjection(
@@ -425,16 +458,16 @@ public struct SotoDynamoClient: DynamoClient {
                 projectionExpression: projection
             )
             let soto = DynamoDB.BatchGetItemInput(
-                requestItems: [input.tableName: request]
+                requestItems: [resolved: request]
             )
             let output = try await database.batchGetItem(soto)
-            if let items = output.responses?[input.tableName] {
+            if let items = output.responses?[resolved] {
                 for item in items {
                     let decoded = try DynamoDecoder.decode(Model.self, from: item)
                     collected.append(decoded)
                 }
             }
-            if let unprocessed = output.unprocessedKeys?[input.tableName] {
+            if let unprocessed = output.unprocessedKeys?[resolved] {
                 pendingKeys = unprocessed.keys.map { rawKey in
                     rawKey.mapValues { $0.toDynamoValue() }
                 }
@@ -448,9 +481,10 @@ public struct SotoDynamoClient: DynamoClient {
     public func count<Model: DynamoModel>(
         _ input: DynamoQueries.ScanInput<Model>
     ) async throws -> CountPage {
+        let resolved = resolveTableName(input.tableName)
         var withCount = input
         withCount.selectCountOnly = true
-        let output = try await database.scan(withCount.toSotoScanInput())
+        let output = try await database.scan(withCount.toSotoScanInput(tableNameOverride: resolved))
         let nextToken = output.lastEvaluatedKey.map { key in
             PaginationToken(key: key.mapValues { $0.toDynamoValue() })
         }
