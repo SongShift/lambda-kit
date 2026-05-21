@@ -144,6 +144,7 @@ try await TransactWriteInput {
 - ``BatchWriteInput``
 - ``TransactWriteInput``
 - ``TransactWriteItem``
+- ``TransactWritable``
 
 ### Result builders
 

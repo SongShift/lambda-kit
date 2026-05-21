@@ -382,6 +382,63 @@ try await TransactWriteInput {
 A failed transaction throws ``TransactionCanceled`` whose `cancellations`
 array maps 1:1 to the legs you submitted, with `code`/`message` per leg.
 
+#### Composing writes across layers
+
+Every write builder (`PutItemInput`, `UpdateInput`, `DeleteItemInput`) and
+`TransactWriteInput` itself conforms to `TransactWritable`. The result
+builder accepts any value of that protocol — and the conditional
+`Array: TransactWritable` conformance means a `[any TransactWritable]`
+flattens automatically. Three consequences:
+
+  * **Builders are values, not async calls.** You can hand a write back to
+    the caller without firing it. `.execute(using:)` is the only step that
+    talks to DynamoDB.
+  * **Multi-leg returns.** A function can return a nested
+    `TransactWriteInput` and the outer builder unrolls every leg in place.
+  * **Transaction boundaries belong to the service, not the repository.**
+    Push the atomic-write decision to where the business operation lives.
+
+A repository example:
+
+```swift
+struct HikerRepository {
+    func create(_ hiker: Hiker) -> any TransactWritable {
+        hiker.put { $0.id.doesNotExist }
+    }
+
+    func logHike(_ hike: Hike) throws -> any TransactWritable {
+        try TransactWriteInput {
+            hike.put { $0.hikeID.doesNotExist }
+            try Hiker.update(partitionKey: hike.hikerID) {
+                $0.hikeCount.add(1)
+            } where: { $0.id.exists }
+        }
+    }
+
+    func cancel(_ hikes: [(hikerID: String, hikeID: String)]) throws -> any TransactWritable {
+        try hikes.map { ids in
+            try Hike.update(partitionKey: ids.hikerID, sortKey: ids.hikeID) {
+                $0.status.set(to: "cancelled")
+            }
+        }
+    }
+}
+```
+
+Compose at the call site:
+
+```swift
+try await TransactWriteInput {
+    repo.create(newHiker)            // 1 leg
+    try repo.logHike(recordedHike)   // 2 legs
+    try repo.cancel(staleHikes)      // N legs
+}
+.execute(using: client)
+```
+
+The builder calls `toTransactWriteItems()` on each value and concatenates
+the result. The 100-leg per-transaction cap applies to the flattened total.
+
 ### Pagination
 
 Single page, opaque cursor in the response:

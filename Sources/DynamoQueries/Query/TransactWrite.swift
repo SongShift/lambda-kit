@@ -131,18 +131,45 @@ extension TransactWriteInput {
     }
 }
 
+// MARK: - TransactWritable
+
+/// A value that can be lowered into one or more `TransactWriteItem` legs.
+///
+/// Conformers are accepted directly inside a `TransactWriteInput { ... }`
+/// result-builder block. The list return lets a single value expand into
+/// many legs.
+public protocol TransactWritable: Sendable {
+    func toTransactWriteItems() -> [TransactWriteItem]
+}
+
+extension TransactWriteItem: TransactWritable {
+    public func toTransactWriteItems() -> [TransactWriteItem] { [self] }
+}
+
+extension TransactWriteInput: TransactWritable {
+    public func toTransactWriteItems() -> [TransactWriteItem] { items }
+}
+
+extension Array: TransactWritable where Element: TransactWritable {
+    public func toTransactWriteItems() -> [TransactWriteItem] {
+        flatMap { $0.toTransactWriteItems() }
+    }
+}
+
 // MARK: - Item conversions
 
-extension PutItemInput {
+extension PutItemInput: TransactWritable {
     public func toTransactWriteItem() -> TransactWriteItem {
         TransactWriteItem(
             tableName: tableName,
             kind: .put(item: item, condition: transactCondition())
         )
     }
+
+    public func toTransactWriteItems() -> [TransactWriteItem] { [toTransactWriteItem()] }
 }
 
-extension UpdateInput {
+extension UpdateInput: TransactWritable {
     public func toTransactWriteItem() -> TransactWriteItem {
         TransactWriteItem(
             tableName: tableName,
@@ -155,61 +182,49 @@ extension UpdateInput {
             )
         )
     }
+
+    public func toTransactWriteItems() -> [TransactWriteItem] { [toTransactWriteItem()] }
 }
 
-extension DeleteItemInput {
+extension DeleteItemInput: TransactWritable {
     public func toTransactWriteItem() -> TransactWriteItem {
         TransactWriteItem(
             tableName: tableName,
             kind: .delete(key: key, condition: transactCondition())
         )
     }
+
+    public func toTransactWriteItems() -> [TransactWriteItem] { [toTransactWriteItem()] }
 }
 
 // MARK: - Result builder
 
 @resultBuilder
 public enum TransactWriteBuilder {
-    public static func buildExpression<Model: DynamoModel>(
-        _ input: PutItemInput<Model>
-    ) -> TransactWriteItem {
-        input.toTransactWriteItem()
+    public static func buildExpression(
+        _ writable: some TransactWritable
+    ) -> [TransactWriteItem] {
+        writable.toTransactWriteItems()
     }
 
-    public static func buildExpression<Model: DynamoModel>(
-        _ input: UpdateInput<Model>
-    ) -> TransactWriteItem {
-        input.toTransactWriteItem()
+    public static func buildBlock(_ parts: [TransactWriteItem]...) -> [TransactWriteItem] {
+        parts.flatMap { $0 }
     }
 
-    public static func buildExpression<Model: DynamoModel>(
-        _ input: DeleteItemInput<Model>
-    ) -> TransactWriteItem {
-        input.toTransactWriteItem()
+    public static func buildOptional(_ part: [TransactWriteItem]?) -> [TransactWriteItem] {
+        part ?? []
     }
 
-    public static func buildExpression(_ item: TransactWriteItem) -> TransactWriteItem {
-        item
+    public static func buildEither(first part: [TransactWriteItem]) -> [TransactWriteItem] {
+        part
     }
 
-    public static func buildBlock(_ components: TransactWriteItem...) -> [TransactWriteItem] {
-        Array(components)
+    public static func buildEither(second part: [TransactWriteItem]) -> [TransactWriteItem] {
+        part
     }
 
-    public static func buildOptional(_ component: [TransactWriteItem]?) -> [TransactWriteItem] {
-        component ?? []
-    }
-
-    public static func buildEither(first component: [TransactWriteItem]) -> [TransactWriteItem] {
-        component
-    }
-
-    public static func buildEither(second component: [TransactWriteItem]) -> [TransactWriteItem] {
-        component
-    }
-
-    public static func buildArray(_ components: [[TransactWriteItem]]) -> [TransactWriteItem] {
-        components.flatMap { $0 }
+    public static func buildArray(_ parts: [[TransactWriteItem]]) -> [TransactWriteItem] {
+        parts.flatMap { $0 }
     }
 }
 

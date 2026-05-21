@@ -173,6 +173,69 @@ failed will have a code like `"ConditionalCheckFailed"` or
 DynamoDB returns a single transaction-canceled exception even when only one
 leg's condition failed.
 
+### Composing transactions
+
+Every write builder (``PutItemInput``, ``UpdateInput``, ``DeleteItemInput``)
+and ``TransactWriteInput`` itself conforms to ``TransactWritable``. The
+result builder accepts any value of that protocol — including arrays of
+writables via the conditional `Array: TransactWritable` conformance — and
+flattens them into a single leg list. Three things this unlocks:
+
+1. **Write builders are values, not async calls.** A method can build the
+   write and hand it back; the caller decides whether to fire it on its own
+   or fold it into a larger transaction.
+2. **Multi-leg returns.** A function can return a nested
+   ``TransactWriteInput`` (or `[any TransactWritable]`) and the outer
+   builder unrolls every leg in place.
+3. **Repositories own state shape, not transaction boundaries.** Push the
+   atomic-boundary decision up to the service layer where it belongs.
+
+A repository example:
+
+```swift
+struct HikerRepository {
+    // Single leg.
+    func create(_ hiker: Hiker) -> any TransactWritable {
+        hiker.put { $0.id.doesNotExist }
+    }
+
+    // Multi-leg: nested TransactWriteInput is itself a TransactWritable.
+    func logHike(_ hike: Hike) throws -> any TransactWritable {
+        try TransactWriteInput {
+            hike.put { $0.hikeID.doesNotExist }
+            try Hiker.update(partitionKey: hike.hikerID) {
+                $0.hikeCount.add(1)
+            } where: { $0.id.exists }
+        }
+    }
+
+    // Homogeneous list — flattens via Array's conditional conformance.
+    func cancel(_ hikes: [(hikerID: String, hikeID: String)]) throws -> any TransactWritable {
+        try hikes.map { ids in
+            try Hike.update(partitionKey: ids.hikerID, sortKey: ids.hikeID) {
+                $0.status.set(to: "cancelled")
+            }
+        }
+    }
+}
+```
+
+Composing at the call site:
+
+```swift
+try await TransactWriteInput {
+    repo.create(newHiker)            // 1 leg
+    try repo.logHike(recordedHike)   // 2 legs (nested TransactWriteInput)
+    try repo.cancel(staleHikes)      // N legs (array of UpdateInput)
+}
+.execute(using: client)
+```
+
+The builder doesn't care whether each line resolves to one leg or many —
+it asks the value for `toTransactWriteItems()` and concatenates the
+results. The 100-leg per-transaction limit applies to the flattened total,
+so a multi-leg method counts against the same budget as a single-leg one.
+
 ## Pagination
 
 Single page, opaque cursor in the response:

@@ -184,4 +184,71 @@ try await TransactWriteInput {
 }
 .execute(using: client)
 
+// MARK: - 4. Composing transactions through a repository
+
+/// Repositories should generally not own transaction boundaries because
+/// real business operations often span multiple repository calls.
+/// If each repository starts and commits its own transaction independently,
+/// partial state can be persisted when a later operation fails.
+
+/// Repositories can retun and compose TransactWritables that can be used in the
+/// final transaction
+struct HikerRepository {
+
+    func create(_ hiker: Hiker) -> any TransactWritable {
+        hiker.put { $0.id.doesNotExist }
+    }
+
+    func markVerified(hikerID: String) throws -> any TransactWritable {
+        try Hiker.update(partitionKey: hikerID) {
+            $0.isVerified.set(to: true)
+        } where: { $0.id.exists }
+    }
+
+    func logHike(_ hike: Hike) throws -> any TransactWritable {
+        try TransactWriteInput {
+            hike.put { $0.hikeID.doesNotExist }
+            try Hiker.update(partitionKey: hike.hikerID) {
+                $0.hikeCount.add(1)
+            } where: { $0.id.exists }
+        }
+    }
+
+    func cancel(_ hikes: [(hikerID: String, hikeID: String)]) throws -> any TransactWritable {
+        try hikes.map { ids in
+            try Hike.update(partitionKey: ids.hikerID, sortKey: ids.hikeID) {
+                $0.status.set(to: "cancelled")
+            }
+        }
+    }
+}
+
+let repo = HikerRepository()
+
+print("\n— Repository: compose single + multi-leg writes -—————————————————————")
+let recordedHike = Hike(
+    hikerID: "hiker-123",
+    hikeID: "2026-007",
+    trailName: "Wonderland",
+    distanceMiles: 12.4,
+    elevationGainFeet: 1800,
+    rating: 5,
+    status: "completed"
+)
+try await TransactWriteInput {
+    repo.create(newHiker)
+    try repo.logHike(recordedHike)
+    try repo.markVerified(hikerID: "hiker-123")
+}
+.execute(using: client)
+
+print("\n— Repository: array of writables flattens automatically -——————————————")
+try await TransactWriteInput {
+    try repo.cancel([
+        (hikerID: "hiker-123", hikeID: "2026-001"),
+        (hikerID: "hiker-123", hikeID: "2026-002"),
+    ])
+}
+.execute(using: client)
+
 print("\nDone.\n")
