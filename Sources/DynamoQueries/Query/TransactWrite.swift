@@ -88,15 +88,8 @@ public struct TransactWriteItem: Sendable {
 }
 
 /// A pending transactional write — up to 100 items DynamoDB will apply
-/// atomically (all-or-nothing). Build by chaining `.add(_:)` with the typed
-/// inputs you'd otherwise pass to single-item writes:
-///
-///     try await TransactWriteInput()
-///         .add(chart.put { ... })
-///         .add(try MyModel.update(...) { ... } where: { ... })
-///         .add(try MyModel.delete(...) where: { ... })
-///         .add(try MyModel.conditionCheck(partitionKey: ...) { ... })
-///         .execute(using: client)
+/// atomically (all-or-nothing). Build with the `TransactWriteInput { ... }`
+/// result-builder init, or hand `init(items:)` a pre-built `[TransactWriteItem]`.
 ///
 /// `ConditionalCheckFailed` is **not** thrown for transactional failures —
 /// DynamoDB returns a `TransactionCanceledException` whose cancellation
@@ -240,8 +233,8 @@ extension TransactWriteInput {
 
 extension DynamoModel {
     /// Build a `ConditionCheck` transact item — checks a row's condition
-    /// without writing. Use inside `TransactWriteInput.add(_:)` to assert
-    /// state on a related row that this transaction depends on.
+    /// without writing. Use inside a `TransactWriteInput { ... }` block to
+    /// assert state on a related row that this transaction depends on.
     public static func conditionCheck(
         partitionKey: some DynamoEncodable,
         @ConditionBuilder where condition: (Columns) -> [Expression]

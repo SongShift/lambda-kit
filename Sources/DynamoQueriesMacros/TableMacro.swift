@@ -43,17 +43,12 @@ public struct TableMacro: ExtensionMacro {
                   let typeAnnotation = binding.typeAnnotation?.type
             else { continue }
 
-            // Skip computed properties
-            if let accessors = binding.accessorBlock {
-                let hasGetter = accessors.accessors.description.contains("get")
-                if hasGetter { continue }
-            }
-
             let swiftName = pattern.identifier.text
             let propertyType = typeAnnotation.trimmedDescription
 
             // Check for @Attribute("customName")
             var dynamoName = swiftName
+            var hasAttributeAnnotation = false
             for attribute in varDecl.attributes {
                 if let attributeSyntax = attribute.as(AttributeSyntax.self),
                    attributeSyntax.attributeName.trimmedDescription == "Attribute",
@@ -62,6 +57,7 @@ public struct TableMacro: ExtensionMacro {
                    let literal = argument.expression.as(StringLiteralExprSyntax.self),
                    let segment = literal.segments.first?.as(StringSegmentSyntax.self) {
                     dynamoName = segment.content.text
+                    hasAttributeAnnotation = true
                 }
             }
 
@@ -79,6 +75,14 @@ public struct TableMacro: ExtensionMacro {
             }
             if isSortKey {
                 sortKeyName = dynamoName
+            }
+
+            // Skip computed properties unless explicitly tagged as a key or attribute.
+            // Incidental computed properties shouldn't pollute the Attribute namespace
+            if let accessors = binding.accessorBlock {
+                let hasGetter = accessors.accessors.description.contains("get")
+                let isExplicitlyTagged = isPartitionKey || isSortKey || hasAttributeAnnotation
+                if hasGetter && !isExplicitlyTagged { continue }
             }
 
             properties.append((swiftName: swiftName, dynamoName: dynamoName, typeName: propertyType))
