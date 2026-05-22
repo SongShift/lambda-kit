@@ -20,6 +20,10 @@ let package = Package(
             name: "DynamoQueriesSoto",
             targets: ["DynamoQueriesSoto"]
         ),
+        .library(
+            name: "DynamoQueriesTestSupport",
+            targets: ["DynamoQueriesTestSupport"]
+        ),
         .library(name: "APIGatewayV2Server", targets: ["APIGatewayV2Server"]),
     ],
     dependencies: [
@@ -56,6 +60,10 @@ let package = Package(
                 "DynamoQueries",
                 .product(name: "SotoDynamoDB", package: "soto"),
             ]
+        ),
+        .target(
+            name: "DynamoQueriesTestSupport",
+            dependencies: ["DynamoQueries"]
         ),
         .macro(
             name: "DynamoQueriesMacros",

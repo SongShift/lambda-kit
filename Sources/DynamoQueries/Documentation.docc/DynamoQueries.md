@@ -44,6 +44,7 @@ The library is split into three concerns:
 
 > Note: For an end-to-end tour of the operations, see <doc:Operations>.
 > For schema design with macros, see <doc:Schema>.
+> For the error-handling surface, see <doc:ErrorHandling>.
 
 ## Quick start
 
@@ -99,6 +100,7 @@ try await TransactWriteInput {
 - <doc:Schema>
 - <doc:Operations>
 - <doc:WireTransport>
+- <doc:ErrorHandling>
 
 ### Declaring tables
 
@@ -171,6 +173,9 @@ try await TransactWriteInput {
 
 ### Errors
 
+- <doc:ErrorHandling>
+- ``DynamoFailure``
+- ``DynamoError``
 - ``ConditionalCheckFailed``
 - ``TransactionCanceled``
 - ``PrimaryKeyError``

@@ -4,11 +4,12 @@
 /// what happened to the `i`-th item.
 ///
 /// DynamoDB always returns one cancellation entry per leg, even legs that
-/// were fine; those entries carry `code == "None"`. The leg that actually
-/// failed will have a code like `"ConditionalCheckFailed"` /
-/// `"TransactionConflict"` / `"ProvisionedThroughputExceeded"` /
-/// `"ValidationError"` and may carry the conflicting item on `priorRawItem`
-/// if the original write asked for it via `.returnConflictingItem()`.
+/// were fine; the "leg succeeded" entries surface here with `reason == nil`,
+/// so a typical caller iterates `failedCancellations` rather than
+/// `cancellations`. The failing leg's `reason` is a `DynamoFailure` — the
+/// same vocabulary used everywhere else — and may carry the conflicting item
+/// on `priorRawItem` if the original write asked for it via
+/// `.returnConflictingItem()`.
 ///
 /// `priorRawItem` is exposed as a raw `[String: DynamoValue]` map rather
 /// than a typed model — a transaction can span tables, so there's no single
@@ -23,21 +24,52 @@ public struct TransactionCanceled: Error, Sendable {
     public struct Cancellation: Sendable {
         /// The leg's position in the original `TransactWriteInput.items`.
         public let index: Int
-        public let code: String?
-        public let message: String?
+        /// The categorized failure for this leg, or `nil` if the leg
+        /// succeeded. DynamoDB returns an entry for every leg in the
+        /// transaction (even ones that didn't fail); we lift the "None"
+        /// no-op cancellations to `nil` so callers iterate only real failures.
+        public let failure: DynamoFailure?
+        /// The raw conflicting item, if `.returnConflictingItem()` was set on
+        /// the originating write. The Soto adapter populates this for
+        /// `ConditionalCheckFailed` cancellations.
         public let priorRawItem: [String: DynamoValue]?
 
         public init(
             index: Int,
-            code: String?,
-            message: String?,
+            failure: DynamoFailure?,
             priorRawItem: [String: DynamoValue]?
         ) {
             self.index = index
-            self.code = code
-            self.message = message
+            self.failure = failure
             self.priorRawItem = priorRawItem
         }
+    }
+
+    /// Only the cancellations whose `failure` is non-nil — i.e., the legs
+    /// that actually failed. Skips the "None" entries DynamoDB emits for
+    /// succeeded legs.
+    public var failedCancellations: [Cancellation] {
+        cancellations.filter { $0.failure != nil }
+    }
+}
+
+extension TransactionCanceled: DynamoError {
+    /// Retry the whole transaction only when every recognized failure mode is
+    /// retryable. A single non-retryable leg (conditional check, validation,
+    /// auth, …) is definitive — the next attempt would fail the same way.
+    /// `.unknown` reasons are ignored when deciding retryability so a
+    /// future-AWS code can't accidentally flip the decision either way.
+    public var isRetryable: Bool {
+        var sawRetryable = false
+        for failure in cancellations.compactMap(\.failure) {
+            if case .unknown = failure.reason { continue }
+            if failure.isRetryable {
+                sawRetryable = true
+            } else {
+                return false
+            }
+        }
+        return sawRetryable
     }
 }
 

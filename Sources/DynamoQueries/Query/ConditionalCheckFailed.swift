@@ -22,3 +22,10 @@ public struct ConditionalCheckFailed<Model: DynamoModel>: Error, Sendable {
         self.priorItem = priorItem
     }
 }
+
+extension ConditionalCheckFailed: DynamoError {
+    /// Conditional-check failures are business-rule outcomes — the same
+    /// request will evaluate the same way next time. Retrying isn't useful;
+    /// the caller needs to refetch and rebuild the request.
+    public var isRetryable: Bool { false }
+}

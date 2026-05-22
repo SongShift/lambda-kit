@@ -938,8 +938,12 @@ struct TransactWriteTests {
         let priorScan = PhotoScan(id: "scan-abc", status: "completed", updatedAt: 0)
         let priorRaw = ["id": DynamoValue.string("scan-abc"), "status": .string("completed")]
         let canceled = TransactionCanceled(cancellations: [
-            .init(index: 0, code: "None", message: nil, priorRawItem: nil),
-            .init(index: 1, code: "ConditionalCheckFailed", message: "leg 1 failed", priorRawItem: priorRaw),
+            .init(index: 0, failure: nil, priorRawItem: nil),
+            .init(
+                index: 1,
+                failure: DynamoFailure(reason: .conditionalCheckFailed, message: "leg 1 failed"),
+                priorRawItem: priorRaw
+            ),
         ])
         await client.throwOnTransactWrite(canceled)
 
@@ -961,9 +965,11 @@ struct TransactWriteTests {
             Issue.record("expected TransactionCanceled to throw")
         } catch let cancellation as TransactionCanceled {
             #expect(cancellation.cancellations.count == 2)
-            #expect(cancellation.cancellations[0].code == "None")
-            #expect(cancellation.cancellations[1].code == "ConditionalCheckFailed")
+            #expect(cancellation.cancellations[0].failure == nil)
+            #expect(cancellation.failedCancellations.count == 1)
+            #expect(cancellation.cancellations[1].failure?.reason == .conditionalCheckFailed)
             #expect(cancellation.cancellations[1].priorRawItem?["id"] == .string("scan-abc"))
+            #expect(cancellation.isRetryable == false)
         }
         // suppress unused var warning
         _ = priorScan
