@@ -11,12 +11,13 @@
 public enum UpdateAction: Sendable, Equatable {
     case set(attributeName: String, value: DynamoValue)
     case setIfNotExists(attributeName: String, fallback: DynamoValue)
-    /// `SET name = list_append(name, :items)` — appends `items` to the end
-    /// of an existing list. DynamoDB treats a missing attribute as an empty
-    /// list, so this also serves as "create-or-extend".
+    /// `SET name = list_append(if_not_exists(name, :empty), :items)` —
+    /// appends `items` to the end of the list, creating the list if the
+    /// attribute is missing so the expression succeeds either way.
     case listAppend(attributeName: String, items: DynamoValue)
-    /// `SET name = list_append(:items, name)` — prepends `items` to the
-    /// front of an existing list.
+    /// `SET name = list_append(:items, if_not_exists(name, :empty))` —
+    /// prepends `items` to the front of the list, creating the list if the
+    /// attribute is missing so the expression succeeds either way.
     case listPrepend(attributeName: String, items: DynamoValue)
     case remove(attributeName: String)
     case add(attributeName: String, value: DynamoValue)

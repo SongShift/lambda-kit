@@ -556,7 +556,7 @@ struct UpdateItemEquivalenceTests {
         expectEquivalent(dslSoto, reference)
     }
 
-    @Test("UpdateItem: list append uses list_append(name, :items)")
+    @Test("UpdateItem: list append wraps the existing list in if_not_exists")
     func updateItemListAppend() async throws {
         let client = RecordingDynamoClient()
         try await TrailRoute.update(partitionKey: "route-1") { column in
@@ -569,15 +569,16 @@ struct UpdateItemEquivalenceTests {
         let reference = DynamoDB.UpdateItemInput(
             expressionAttributeValues: [
                 ":items": .l([.s("Mist Falls"), .s("Lake Loop")]),
+                ":empty": .l([]),
             ],
             key: ["routeId": .s("route-1")],
             tableName: "TrailRoutes",
-            updateExpression: "SET aliases = list_append(aliases, :items)"
+            updateExpression: "SET aliases = list_append(if_not_exists(aliases, :empty), :items)"
         )
         expectEquivalent(dslSoto, reference)
     }
 
-    @Test("UpdateItem: list prepend swaps the list_append argument order")
+    @Test("UpdateItem: list prepend wraps the existing list in if_not_exists")
     func updateItemListPrepend() async throws {
         let client = RecordingDynamoClient()
         try await TrailRoute.update(partitionKey: "route-1") { column in
@@ -588,10 +589,13 @@ struct UpdateItemEquivalenceTests {
         let dslSoto = captured.toSotoUpdateItemInput()
 
         let reference = DynamoDB.UpdateItemInput(
-            expressionAttributeValues: [":items": .l([.s("alpha")])],
+            expressionAttributeValues: [
+                ":items": .l([.s("alpha")]),
+                ":empty": .l([]),
+            ],
             key: ["routeId": .s("route-1")],
             tableName: "TrailRoutes",
-            updateExpression: "SET aliases = list_append(:items, aliases)"
+            updateExpression: "SET aliases = list_append(:items, if_not_exists(aliases, :empty))"
         )
         expectEquivalent(dslSoto, reference)
     }

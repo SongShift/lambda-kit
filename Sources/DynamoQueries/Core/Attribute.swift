@@ -303,8 +303,9 @@ extension Attribute {
 
 extension Attribute {
     /// Append `items` to a list attribute. Compiles to
-    /// `SET name = list_append(name, :items)`. DynamoDB treats a missing
-    /// attribute as an empty list, so this doubles as "create or extend".
+    /// `SET name = list_append(if_not_exists(name, :empty), :items)` so the
+    /// expression succeeds whether the attribute already exists or not —
+    /// missing becomes an empty list, then the new items are appended.
     public func append<Element: DynamoEncodable>(_ items: [Element]) -> UpdateAction
         where Value == [Element] {
         .listAppend(attributeName: name, items: items.toDynamoValue())
@@ -316,7 +317,8 @@ extension Attribute {
     }
 
     /// Prepend `items` to a list attribute. Compiles to
-    /// `SET name = list_append(:items, name)`.
+    /// `SET name = list_append(:items, if_not_exists(name, :empty))` so the
+    /// expression succeeds whether the attribute already exists or not.
     public func prepend<Element: DynamoEncodable>(_ items: [Element]) -> UpdateAction
         where Value == [Element] {
         .listPrepend(attributeName: name, items: items.toDynamoValue())

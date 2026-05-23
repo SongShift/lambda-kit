@@ -28,14 +28,20 @@ public enum UpdateExpressionCompiler {
                 setClauses.append("\(name) = if_not_exists(\(name), \(valuePlaceholder))")
 
             case .listAppend(let attribute, let items):
+                // Wrap the existing-list operand in if_not_exists so the
+                // expression succeeds even when the attribute is missing —
+                // bare list_append(name, ...) fails with ValidationException
+                // if name doesn't exist.
                 let name = allocator.name(for: attribute)
                 let valuePlaceholder = allocator.value(for: items)
-                setClauses.append("\(name) = list_append(\(name), \(valuePlaceholder))")
+                let emptyPlaceholder = allocator.value(for: .list([]))
+                setClauses.append("\(name) = list_append(if_not_exists(\(name), \(emptyPlaceholder)), \(valuePlaceholder))")
 
             case .listPrepend(let attribute, let items):
                 let name = allocator.name(for: attribute)
                 let valuePlaceholder = allocator.value(for: items)
-                setClauses.append("\(name) = list_append(\(valuePlaceholder), \(name))")
+                let emptyPlaceholder = allocator.value(for: .list([]))
+                setClauses.append("\(name) = list_append(\(valuePlaceholder), if_not_exists(\(name), \(emptyPlaceholder)))")
 
             case .remove(let attribute):
                 removeClauses.append(allocator.name(for: attribute))
