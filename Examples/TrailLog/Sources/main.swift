@@ -58,6 +58,11 @@ actor FakeDynamoClient: DynamoClient {
     func batchGet<Model: DynamoModel>(_ input: BatchGetInput<Model>) async throws -> [Model] { [] }
     func batchWrite<Model: DynamoModel>(_ input: BatchWriteInput<Model>) async throws {}
     func transactWrite(_ items: [TransactWriteItem]) async throws {}
+    func transactGet<each Model: DynamoModel>(
+        _ gets: repeat GetItemInput<each Model>
+    ) async throws -> (repeat (each Model)?) {
+        (repeat Optional<each Model>.none)
+    }
 
     /// Best-effort partition-key extraction for the fake's storage map. Real
     /// adapters use `DynamoEncoder` for this; we cheat with `Mirror`.

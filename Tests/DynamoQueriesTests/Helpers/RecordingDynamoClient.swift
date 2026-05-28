@@ -31,6 +31,9 @@ actor RecordingDynamoClient: DynamoClient {
     private var batchWriteInputs: [ObjectIdentifier: Any] = [:]
     private(set) var lastTransactWriteItems: [TransactWriteItem]?
     private var transactWriteError: Error?
+    private(set) var lastTransactGetTables: [String]?
+    private(set) var lastTransactGetKeys: [[String: DynamoValue]]?
+    private var transactGetResults: [Any?] = []
     private var queryPageQueues: [ObjectIdentifier: [Any]] = [:]
     private var scanPageQueues: [ObjectIdentifier: [Any]] = [:]
     private var queryCountQueues: [ObjectIdentifier: [CountPage]] = [:]
@@ -136,6 +139,33 @@ actor RecordingDynamoClient: DynamoClient {
 
     func throwOnTransactWrite(_ error: Error) {
         transactWriteError = error
+    }
+
+    func transactGet<each Model: DynamoModel>(
+        _ gets: repeat GetItemInput<each Model>
+    ) async throws -> (repeat (each Model)?) {
+        var tables: [String] = []
+        var keys: [[String: DynamoValue]] = []
+        repeat tables.append((each gets).tableName)
+        repeat keys.append((each gets).key)
+        lastTransactGetTables = tables
+        lastTransactGetKeys = keys
+
+        // Seeded results are matched positionally to the legs; an unseeded or
+        // wrong-typed slot comes back `nil`, mirroring a not-found item.
+        var index = 0
+        func next<M: DynamoModel>(_ type: M.Type) -> M? {
+            defer { index += 1 }
+            guard index < transactGetResults.count else { return nil }
+            return transactGetResults[index] as? M
+        }
+        return (repeat next((each Model).self))
+    }
+
+    /// Seed the per-leg results for the next `transactGet`, in declaration
+    /// order. Use `nil` for a leg that should read as not-found.
+    func seedTransactGetResults(_ items: [Any?]) {
+        transactGetResults = items
     }
 
     // MARK: - Page-queue plumbing

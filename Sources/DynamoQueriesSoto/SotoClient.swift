@@ -39,11 +39,11 @@ private func translatingConditionalCheckFailures<Model: DynamoModel>(
     }
 }
 
-private func translatingTransactionFailures(
-    _ block: () async throws -> Void
-) async throws {
+private func translatingTransactionFailures<T>(
+    _ block: () async throws -> T
+) async throws -> T {
     do {
-        try await block()
+        return try await block()
     } catch let error as DynamoDBErrorType where error == .transactionCanceledException {
         let extended = error.context?.extendedError as? DynamoDB.TransactionCanceledException
         let reasons = extended?.cancellationReasons ?? []
@@ -208,6 +208,22 @@ extension DynamoQueries.GetItemInput {
         )
         return DynamoDB.GetItemInput(
             consistentRead: consistentRead ? true : nil,
+            expressionAttributeNames: names.isEmpty ? nil : names,
+            key: key.mapValues { $0.toSotoAttributeValue() },
+            projectionExpression: projection,
+            tableName: tableNameOverride ?? tableName
+        )
+    }
+
+    /// Converts this get into a `DynamoDB.Get` — the leg shape `TransactGetItems`
+    /// expects. `consistentRead` is intentionally dropped: read transactions are
+    /// always serializable and have no per-item consistency setting.
+    public func toSotoGet(tableNameOverride: String? = nil) -> DynamoDB.Get {
+        let (projection, names) = resolveProjection(
+            attributes: projectionAttributes,
+            existingNames: [:]
+        )
+        return DynamoDB.Get(
             expressionAttributeNames: names.isEmpty ? nil : names,
             key: key.mapValues { $0.toSotoAttributeValue() },
             projectionExpression: projection,
@@ -494,6 +510,46 @@ public struct SotoDynamoClient: DynamoClient {
                 _ = try await self.database.transactWriteItems(soto)
             }
         }
+    }
+
+    public func transactGet<each Model: DynamoModel>(
+        _ gets: repeat GetItemInput<each Model>
+    ) async throws -> (repeat (each Model)?) {
+        // Lower each typed leg into a Soto `Get`, applying the configured table
+        // suffix. The pack is walked in declaration order, so `sotoItems` lines
+        // up 1:1 with the legs — which DynamoDB mirrors back in `responses`.
+        var sotoItems: [DynamoDB.TransactGetItem] = []
+        repeat sotoItems.append(
+            DynamoDB.TransactGetItem(
+                get: (each gets).toSotoGet(
+                    tableNameOverride: self.resolveTableName((each gets).tableName)
+                )
+            )
+        )
+
+        let output = try await translatingDynamoFailures {
+            try await translatingTransactionFailures {
+                try await self.database.transactGetItems(
+                    DynamoDB.TransactGetItemsInput(transactItems: sotoItems)
+                )
+            }
+        }
+
+        // Re-decode the ordered responses back into the leg types. DynamoDB
+        // returns one `ItemResponse` per requested item, in request order, so a
+        // left-to-right index walk over the pack stays aligned. A leg with no
+        // item (`nil`/empty) decodes to `nil`.
+        let responses = output.responses ?? []
+        var index = 0
+        func decodeNext<M: DynamoModel>(_ type: M.Type) throws -> M? {
+            defer { index += 1 }
+            guard index < responses.count,
+                  let item = responses[index].item,
+                  !item.isEmpty
+            else { return nil }
+            return try DynamoDecoder.decode(M.self, from: item)
+        }
+        return (repeat try decodeNext((each Model).self))
     }
 
     public func batchWrite<Model: DynamoModel>(

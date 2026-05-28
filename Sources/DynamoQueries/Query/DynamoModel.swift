@@ -74,6 +74,20 @@ public protocol DynamoClient: Sendable {
     /// different tables. Failures surface as the adapter's native
     /// `TransactionCanceledException` (typed wrapping is future work).
     func transactWrite(_ items: [TransactWriteItem]) async throws
+
+    /// Run an atomic, serializable read of up to 100 items (which may span
+    /// tables) in a single `TransactGetItems` call. Returns one optional per
+    /// leg, in the order the legs were supplied — a leg whose key matched no
+    /// item decodes to `nil`. A read transaction the database cancels (for
+    /// example because a conflicting write transaction is in flight) throws
+    /// `TransactionCanceled`.
+    ///
+    /// The legs keep their static `Model` types through a parameter pack, so
+    /// the result is a typed, heterogeneous tuple rather than an erased map —
+    /// `(repeat (each Model)?)`.
+    func transactGet<each Model: DynamoModel>(
+        _ gets: repeat GetItemInput<each Model>
+    ) async throws -> (repeat (each Model)?)
 }
 
 // MARK: - Build entry points

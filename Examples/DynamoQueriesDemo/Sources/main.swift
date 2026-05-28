@@ -103,6 +103,15 @@ actor RecordingClient: DynamoClient {
     func transactWrite(_ items: [TransactWriteItem]) async throws {
         print("TransactWrite legs=\(items.count)")
     }
+
+    func transactGet<each Model: DynamoModel>(
+        _ gets: repeat GetItemInput<each Model>
+    ) async throws -> (repeat (each Model)?) {
+        var tables: [String] = []
+        repeat tables.append((each gets).tableName)
+        print("TransactGet legs=\(tables.count) tables=\(tables)")
+        return (repeat Optional<each Model>.none)
+    }
 }
 
 // MARK: - 3. Walk-through
@@ -183,6 +192,16 @@ try await TransactWriteInput {
     ) { $0.status == "in_progress" }
 }
 .execute(using: client)
+
+print("\n— TransactGet: atomic, serializable multi-item read -—————————————————")
+
+let (snapshotHiker, snapshotHike): (Hiker?, Hike?) = try await TransactGet {
+    try Hiker.get(partitionKey: "hiker-123")
+    try Hike.get(partitionKey: "hiker-1", sortKey: "2026-001")
+}
+.execute(using: client)
+
+print("hiker found: \(snapshotHiker != nil), hike found: \(snapshotHike != nil)")
 
 
 // MARK: - 4. Composing transactions through a repository
