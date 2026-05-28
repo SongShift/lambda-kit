@@ -200,8 +200,8 @@ struct HikerRepository {
         hiker.put { $0.id.doesNotExist }
     }
 
-    func markVerified(hikerID: String) throws -> any TransactWritable {
-        try Hiker.update(partitionKey: hikerID) {
+    func markVerified(hikerID: String) throws -> UpdateInput<Hiker> {
+        return try Hiker.update(partitionKey: hikerID) {
             $0.isVerified.set(to: true)
         } where: { $0.id.exists }
     }
@@ -215,8 +215,8 @@ struct HikerRepository {
         }
     }
 
-    func cancel(_ hikes: [(hikerID: String, hikeID: String)]) throws -> any TransactWritable {
-        try hikes.map { ids in
+    func cancel(_ hikes: [(hikerID: String, hikeID: String)]) throws -> [UpdateInput<Hike>] {
+        return try hikes.map { ids in
             try Hike.update(partitionKey: ids.hikerID, sortKey: ids.hikeID) {
                 $0.status.set(to: "cancelled")
             }
