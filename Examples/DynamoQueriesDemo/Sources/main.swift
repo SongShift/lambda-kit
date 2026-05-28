@@ -8,7 +8,7 @@
 import Foundation
 import DynamoQueries
 
-// MARK: - 1. Models
+// MARK: Models
 
 @Table("DemoHikers")
 @Index("emailIndex", partitionKey: "email")
@@ -32,89 +32,7 @@ struct Hike: Codable, Sendable {
     var status: String
 }
 
-// MARK: - 2. Recording client
-
-/// Captures every DSL-built input, prints what the wire-level request looks
-/// like, and hands back canned responses. Real adapters live in
-/// `DynamoQueriesSoto`.
-actor RecordingClient: DynamoClient {
-    func execute<Model: DynamoModel>(_ input: QueryInput<Model>) async throws -> QueryPage<Model> {
-        print("""
-        Query \(input.tableName)\(input.indexName.map { " on \($0)" } ?? "")
-            keyCondition: \(input.keyConditionExpression)
-            filter:       \(input.filterExpression ?? "(none)")
-            names:        \(input.expressionAttributeNames)
-            values:       \(input.expressionAttributeValues)
-        """)
-        return QueryPage(items: [], nextToken: nil)
-    }
-
-    func getItem<Model: DynamoModel>(_ input: GetItemInput<Model>) async throws -> Model? {
-        print("GetItem \(input.tableName) key=\(input.key)")
-        return nil
-    }
-
-    func putItem<Model: DynamoModel>(_ input: PutItemInput<Model>) async throws {
-        print("""
-        PutItem \(input.tableName)
-            condition: \(input.conditionExpression ?? "(none)")
-        """)
-    }
-
-    func updateItem<Model: DynamoModel>(_ input: UpdateInput<Model>) async throws {
-        print("""
-        UpdateItem \(input.tableName)
-            update:    \(input.updateExpression)
-            condition: \(input.conditionExpression ?? "(none)")
-        """)
-    }
-
-    func updateItemReturning<Model: DynamoModel>(_ input: UpdateReturning<Model>) async throws -> Model? {
-        try await updateItem(input.input)
-        return nil
-    }
-
-    func deleteItem<Model: DynamoModel>(_ input: DeleteItemInput<Model>) async throws {
-        print("DeleteItem \(input.tableName) key=\(input.key)")
-    }
-
-    func scan<Model: DynamoModel>(_ input: ScanInput<Model>) async throws -> QueryPage<Model> {
-        print("Scan \(input.tableName) filter=\(input.filterExpression ?? "(none)")")
-        return QueryPage(items: [], nextToken: nil)
-    }
-
-    func count<Model: DynamoModel>(_ input: QueryInput<Model>) async throws -> CountPage {
-        CountPage(count: 0, scannedCount: 0, nextToken: nil)
-    }
-
-    func count<Model: DynamoModel>(_ input: ScanInput<Model>) async throws -> CountPage {
-        CountPage(count: 0, scannedCount: 0, nextToken: nil)
-    }
-
-    func batchGet<Model: DynamoModel>(_ input: BatchGetInput<Model>) async throws -> [Model] {
-        print("BatchGet \(input.tableName) keys=\(input.keys.count)")
-        return []
-    }
-
-    func batchWrite<Model: DynamoModel>(_ input: BatchWriteInput<Model>) async throws {
-        print("BatchWrite \(input.tableName) puts=\(input.putItems.count) deletes=\(input.deleteKeys.count)")
-    }
-
-    func transactWrite(_ items: [TransactWriteItem]) async throws {
-        print("TransactWrite legs=\(items.count)")
-    }
-
-    func transactGet<each Model: DynamoModel>(
-        _ gets: repeat GetItemInput<each Model>
-    ) async throws -> (repeat (each Model)?) {
-        var tables: [String] = []
-        repeat tables.append((each gets).tableName)
-        print("TransactGet legs=\(tables.count) tables=\(tables)")
-        return (repeat Optional<each Model>.none)
-    }
-}
-
-// MARK: - 3. Walk-through
+// MARK: Walk-through
 
 let client = RecordingClient()
 
@@ -204,71 +122,134 @@ let (snapshotHiker, snapshotHike): (Hiker?, Hike?) = try await TransactGet {
 print("hiker found: \(snapshotHiker != nil), hike found: \(snapshotHike != nil)")
 
 
-// MARK: - 4. Composing transactions through a repository
+// MARK: Repositories and services
 
-/// Repositories should generally not own transaction boundaries because
-/// real business operations often span multiple repository calls.
-/// If each repository starts and commits its own transaction independently,
-/// partial state can be persisted when a later operation fails.
+// Repositories own a single aggregate and are *pure builders*: every method
+// returns either a read leg (`GetItemInput`) or a writable (`TransactWritable`).
+//
+// Services own a unit of work. They inject the repositories they need, decide
+// where the atomic boundary sits, and are the only layer that calls
+// `.execute(using:)`. Keeping transaction boundaries out of the repositories is
+// what lets one service operation compose legs from *several* repositories into
+// a single all-or-nothing read or write if each repository committed its own
+// transaction, a later failure would leave partial state behind.
 
-/// Repositories can retun and compose TransactWritables that can be used in the
-/// final transaction
 struct HikerRepository {
 
-    func create(_ hiker: Hiker) -> any TransactWritable {
+    func fetch(id: String) throws -> GetItemInput<Hiker> {
+        try Hiker.get(partitionKey: id)
+    }
+
+    func fetchMany(ids: [String]) throws -> BatchGetInput<Hiker> {
+        try Hiker.batchGet(partitionKeys: ids)
+    }
+
+    // MARK: Writes — return writables the service composes into one transaction.
+
+    func create(_ hiker: Hiker) -> PutItemInput<Hiker> {
         hiker.put { $0.id.doesNotExist }
     }
 
-    func markVerified(hikerID: String) throws -> UpdateInput<Hiker> {
-        return try Hiker.update(partitionKey: hikerID) {
+    func markVerified(id: String) throws -> UpdateInput<Hiker> {
+        try Hiker.update(partitionKey: id) {
             $0.isVerified.set(to: true)
         } where: { $0.id.exists }
     }
 
-    func logHike(_ hike: Hike) throws -> any TransactWritable {
-        try TransactWriteInput {
-            hike.put { $0.hikeID.doesNotExist }
-            try Hiker.update(partitionKey: hike.hikerID) {
-                $0.hikeCount.add(1)
-            } where: { $0.id.exists }
-        }
+    func incrementHikeCount(id: String) throws -> UpdateInput<Hiker> {
+        try Hiker.update(partitionKey: id) {
+            $0.hikeCount.add(1)
+        } where: { $0.id.exists }
+    }
+}
+
+struct HikeRepository {
+
+    func fetch(hikerID: String, hikeID: String) throws -> GetItemInput<Hike> {
+        try Hike.get(partitionKey: hikerID, sortKey: hikeID)
     }
 
-    func cancel(_ hikes: [(hikerID: String, hikeID: String)]) throws -> [UpdateInput<Hike>] {
-        return try hikes.map { ids in
-            try Hike.update(partitionKey: ids.hikerID, sortKey: ids.hikeID) {
+    func fetchMany(keys: [(hikerID: String, hikeID: String)]) throws -> BatchGetInput<Hike> {
+        try Hike.batchGet(keys: keys.map { (partitionKey: $0.hikerID, sortKey: $0.hikeID) })
+    }
+
+    func record(_ hike: Hike) -> any TransactWritable {
+        hike.put { $0.hikeID.doesNotExist }
+    }
+
+    func setStatus(hikerID: String, hikeID: String, to status: String) throws -> UpdateInput<Hike> {
+        try Hike.update(partitionKey: hikerID, sortKey: hikeID) {
+            $0.status.set(to: status)
+        } where: { $0.hikerID.exists }
+    }
+
+    /// One leg per id — the array flattens automatically inside a write block.
+    func cancelMany(_ ids: [(hikerID: String, hikeID: String)]) throws -> [UpdateInput<Hike>] {
+        try ids.map { id in
+            try Hike.update(partitionKey: id.hikerID, sortKey: id.hikeID) {
                 $0.status.set(to: "cancelled")
             }
         }
     }
 }
 
-let repo = HikerRepository()
+/// A unit-of-work service composed over both repositories. It owns the client
+/// and every transaction boundary; the repositories below it stay ignorant of
+/// both.
+struct TrailService {
+    let client: any DynamoClient
+    let hikers: HikerRepository
+    let hikes: HikeRepository
 
-print("\n— Repository: compose single + multi-leg writes -—————————————————————")
-let recordedHike = Hike(
-    hikerID: "hiker-123",
-    hikeID: "2026-007",
-    trailName: "Wonderland",
-    distanceMiles: 12.4,
-    elevationGainFeet: 1800,
-    rating: 5,
-    status: "completed"
-)
-try await TransactWriteInput {
-    repo.create(newHiker)
-    try repo.logHike(recordedHike)
-    try repo.markVerified(hikerID: "hiker-123")
+
+    func snapshot(hikerID: String, hikeID: String) async throws -> (Hiker?, Hike?) {
+        try await TransactGet {
+            try hikers.fetch(id: hikerID)
+            try hikes.fetch(hikerID: hikerID, hikeID: hikeID)
+        }
+        .execute(using: client)
+    }
+
+    func roster(ids: [String]) async throws -> [Hiker] {
+        try await hikers.fetchMany(ids: ids).execute(using: client)
+    }
+
+    func bulkLoad(
+        hikerIDs: [String],
+        hikeKeys: [(hikerID: String, hikeID: String)]
+    ) async throws -> (hikers: [Hiker], hikes: [Hike]) {
+        async let people = hikers.fetchMany(ids: hikerIDs).execute(using: client)
+        async let logged = hikes.fetchMany(keys: hikeKeys).execute(using: client)
+        return try await (people, logged)
+    }
+
+    /// Insert the hiker, record their first hike, and flip the
+    /// hiker to verified — all or nothing, legs drawn from both repositories.
+    func registerFirstHike(_ hiker: Hiker, firstHike: Hike) async throws {
+        try await TransactWriteInput {
+            hikers.create(hiker)
+            hikes.record(firstHike)
+            try hikers.markVerified(id: hiker.id)
+        }
+        .execute(using: client)
+    }
+
+    /// Read *and* write in the same operation. The service runs an atomic read
+    /// to load current state, then commits an atomic write — two distinct
+    /// boundaries it alone controls. 
+    func completeHike(hikerID: String, hikeID: String) async throws {
+        let (hiker, hike) = try await snapshot(hikerID: hikerID, hikeID: hikeID)
+      
+        guard let hiker, let hike else {
+            return
+        }
+        
+        print(hiker, hike)
+        
+        try await TransactWriteInput {
+            try hikes.setStatus(hikerID: hikerID, hikeID: hikeID, to: "completed")
+            try hikers.incrementHikeCount(id: hikerID)
+        }
+        .execute(using: client)
+    }
 }
-.execute(using: client)
-
-print("\n— Repository: array of writables flattens automatically -——————————————")
-try await TransactWriteInput {
-    try repo.cancel([
-        (hikerID: "hiker-123", hikeID: "2026-001"),
-        (hikerID: "hiker-123", hikeID: "2026-002"),
-    ])
-}
-.execute(using: client)
-
-print("\nDone.\n")
