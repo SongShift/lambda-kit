@@ -113,7 +113,7 @@ await client.clearLog()
 print("\n— TransactWrite: atomic multi-table update -—————————————————————————")
 try await TransactWriteInput {
     newHiker.put { $0.id.doesNotExist }
-    try Hike.update(
+    Hike.update(
         partitionKey: "hiker-1",
         sortKey: "2026-001",
         { $0.status.set(to: "completed") }
@@ -130,8 +130,8 @@ await client.clearLog()
 print("\n— TransactGet: atomic, serializable multi-item read -—————————————————")
 
 let (snapshotHiker, snapshotHike): (Hiker?, Hike?) = try await TransactGet {
-    try Hiker.get(partitionKey: "hiker-123")
-    try Hike.get(partitionKey: "hiker-1", sortKey: "2026-001")
+    Hiker.get(partitionKey: "hiker-123")
+    Hike.get(partitionKey: "hiker-1", sortKey: "2026-001")
 }
 .execute(using: client)
 print(await client.transcript)
@@ -184,8 +184,8 @@ extension Hike {
 
 struct HikerRepository {
 
-    func fetch(id: String) throws -> some Read<DomainHiker> {
-        try Hiker.get(partitionKey: id).map { $0.toDomain() }
+    func fetch(id: String) -> some Read<DomainHiker> {
+        Hiker.get(partitionKey: id).map { $0.toDomain() }
     }
 
     func fetchMany(ids: [String]) throws -> some BatchRead<DomainHiker> {
@@ -198,14 +198,14 @@ struct HikerRepository {
         hiker.put { $0.id.doesNotExist }
     }
 
-    func markVerified(id: String) throws -> UpdateInput<Hiker> {
-        try Hiker.update(partitionKey: id) {
+    func markVerified(id: String) -> UpdateInput<Hiker> {
+        Hiker.update(partitionKey: id) {
             $0.isVerified.set(to: true)
         } where: { $0.id.exists }
     }
 
-    func incrementHikeCount(id: String) throws -> UpdateInput<Hiker> {
-        try Hiker.update(partitionKey: id) {
+    func incrementHikeCount(id: String) -> UpdateInput<Hiker> {
+        Hiker.update(partitionKey: id) {
             $0.hikeCount.add(1)
         } where: { $0.id.exists }
     }
@@ -215,8 +215,8 @@ struct HikeRepository {
 
     // MARK: Reads
 
-    func fetch(hikerID: String, hikeID: String) throws -> some Read<DomainHike> {
-        try Hike.get(partitionKey: hikerID, sortKey: hikeID).map { $0.toDomain() }
+    func fetch(hikerID: String, hikeID: String) -> some Read<DomainHike> {
+        Hike.get(partitionKey: hikerID, sortKey: hikeID).map { $0.toDomain() }
     }
 
     func fetchMany(keys: [(hikerID: String, hikeID: String)]) throws -> some BatchRead<DomainHike> {
@@ -236,15 +236,15 @@ struct HikeRepository {
        return hike.put { $0.hikeID.doesNotExist }
     }
 
-    func setStatus(hikerID: String, hikeID: String, to status: String) throws -> UpdateInput<Hike> {
-        try Hike.update(partitionKey: hikerID, sortKey: hikeID) {
+    func setStatus(hikerID: String, hikeID: String, to status: String) -> UpdateInput<Hike> {
+        Hike.update(partitionKey: hikerID, sortKey: hikeID) {
             $0.status.set(to: status)
         } where: { $0.hikerID.exists }
     }
 
-    func cancelMany(_ ids: [(hikerID: String, hikeID: String)]) throws -> [UpdateInput<Hike>] {
-        try ids.map { id in
-            try Hike.update(partitionKey: id.hikerID, sortKey: id.hikeID) {
+    func cancelMany(_ ids: [(hikerID: String, hikeID: String)]) -> [UpdateInput<Hike>] {
+        ids.map { id in
+            Hike.update(partitionKey: id.hikerID, sortKey: id.hikeID) {
                 $0.status.set(to: "cancelled")
             }
         }
@@ -258,8 +258,8 @@ struct TrailService {
 
     func snapshot(hikerID: String, hikeID: String) async throws -> (DomainHiker?, DomainHike?) {
         try await TransactGet {
-            try hikers.fetch(id: hikerID)
-            try hikes.fetch(hikerID: hikerID, hikeID: hikeID)
+            hikers.fetch(id: hikerID)
+            hikes.fetch(hikerID: hikerID, hikeID: hikeID)
         }
         .execute(using: client)
     }
@@ -289,7 +289,7 @@ struct TrailService {
         try await TransactWriteInput {
             hikers.create(hiker)
             hikes.record(firstHike)
-            try hikers.markVerified(id: hiker.id)
+            hikers.markVerified(id: hiker.id)
         }
         .execute(using: client)
     }
@@ -303,8 +303,8 @@ struct TrailService {
         guard hiker != nil, hike != nil else { return }
 
         try await TransactWriteInput {
-            try hikes.setStatus(hikerID: hikerID, hikeID: hikeID, to: "completed")
-            try hikers.incrementHikeCount(id: hikerID)
+            hikes.setStatus(hikerID: hikerID, hikeID: hikeID, to: "completed")
+            hikers.incrementHikeCount(id: hikerID)
         }
         .execute(using: client)
     }
@@ -378,7 +378,7 @@ await client.clearLog()
 
 print("\n— Repository: array of writables flattens automatically -——————————————")
 try await TransactWriteInput {
-    try hikeRepo.cancelMany([
+    hikeRepo.cancelMany([
         (hikerID: "hiker-200", hikeID: "2026-002"),
         (hikerID: "hiker-200", hikeID: "2026-003"),
     ])

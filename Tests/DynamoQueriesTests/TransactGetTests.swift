@@ -24,8 +24,8 @@ struct TransactGetTests {
     func submitsLegsInOrder() async throws {
         let client = RecordingDynamoClient()
         _ = try await TransactGet {
-            try PhotoScan.get(partitionKey: "scan-1")
-            try HikingSession.get(partitionKey: "hiker-9", sortKey: 3)
+            PhotoScan.get(partitionKey: "scan-1")
+            HikingSession.get(partitionKey: "hiker-9", sortKey: 3)
         }
         .execute(using: client)
 
@@ -45,8 +45,8 @@ struct TransactGetTests {
         await client.seedTransactGetResults([scan, nil])
 
         let (photo, session): (PhotoScan?, HikingSession?) = try await TransactGet {
-            try PhotoScan.get(partitionKey: "scan-1")
-            try HikingSession.get(partitionKey: "hiker-9", sortKey: 3)
+            PhotoScan.get(partitionKey: "scan-1")
+            HikingSession.get(partitionKey: "hiker-9", sortKey: 3)
         }
         .execute(using: client)
 
@@ -64,9 +64,9 @@ struct TransactGetTests {
 
         // Leg 0 is mapped to a domain view; leg 1 is a raw model.
         let (view, raw): (ScanView?, HikingSession?) = try await TransactGet {
-            try PhotoScan.get(partitionKey: "scan-1")
+            PhotoScan.get(partitionKey: "scan-1")
                 .map { ScanView(id: $0.id, done: $0.status == "done") }
-            try HikingSession.get(partitionKey: "hiker-9", sortKey: 3)
+            HikingSession.get(partitionKey: "hiker-9", sortKey: 3)
         }
         .execute(using: client)
 
@@ -90,7 +90,7 @@ struct TransactGetTests {
 
     @Test("A single leg converts to a Soto Get with the table suffix applied")
     func legConvertsToSotoGet() throws {
-        let get = try PhotoScan.get(partitionKey: "scan-1")
+        let get = PhotoScan.get(partitionKey: "scan-1")
         let resolved = get.toSotoGet(tableNameOverride: "TrailPhotoScans-prod")
 
         let reference = DynamoDB.Get(

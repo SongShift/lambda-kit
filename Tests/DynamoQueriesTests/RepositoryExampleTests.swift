@@ -11,8 +11,8 @@ private struct ScanView: Equatable {
 
 private struct PhotoScanRepository {
 
-    func fetch(id: String) throws -> some Read<ScanView> {
-        try PhotoScan.get(partitionKey: id)
+    func fetch(id: String) -> some Read<ScanView> {
+        PhotoScan.get(partitionKey: id)
             .map { ScanView(id: $0.id, done: $0.status == "done") }
     }
 

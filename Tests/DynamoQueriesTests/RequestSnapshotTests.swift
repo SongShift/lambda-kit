@@ -37,8 +37,8 @@ struct RequestSnapshotTests {
     }
 
     @Test("A get renders to a stable request snapshot")
-    func getSnapshot() throws {
-        try assertInlineSnapshot(of: PhotoScan.get(partitionKey: "scan-1"), as: .request) {
+    func getSnapshot() {
+        assertInlineSnapshot(of: PhotoScan.get(partitionKey: "scan-1"), as: .request) {
             """
             GetItem TrailPhotoScans
               key: { id: S("scan-1") }

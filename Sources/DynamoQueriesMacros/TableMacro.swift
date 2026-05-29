@@ -151,6 +151,65 @@ public struct TableMacro: ExtensionMacro {
             "        \(accessLevel)let \(property.swiftName) = Attribute<\(property.typeName)>(\"\(property.dynamoName)\")"
         }.joined(separator: "\n")
 
+        // Key-shaped CRUD factories. The macro knows the table's key shape, so
+        // it emits *only* the matching overload — non-throwing, since there's
+        // nothing left to validate at runtime. Calling the wrong arity (a
+        // sortKey on a partition-only table, or omitting it on a composite one)
+        // is a compile error rather than a thrown `PrimaryKeyError`.
+        let partitionKeyExpr = "[\"\(resolvedPartitionKey)\": partitionKey.toDynamoValue()]"
+        let factoryBlock: String
+        if let sortKeyName {
+            let compositeKeyExpr =
+                "[\"\(resolvedPartitionKey)\": partitionKey.toDynamoValue(), \"\(sortKeyName)\": sortKey.toDynamoValue()]"
+            factoryBlock = """
+
+
+                \(accessLevel)static func get(partitionKey: some DynamoQueries.DynamoEncodable, sortKey: some DynamoQueries.DynamoEncodable) -> DynamoQueries.GetItemInput<\(typeName)> {
+                    DynamoQueries.GetItemInput(tableName: _table.name, key: \(compositeKeyExpr))
+                }
+
+                \(accessLevel)static func update(
+                    partitionKey: some DynamoQueries.DynamoEncodable,
+                    sortKey: some DynamoQueries.DynamoEncodable,
+                    @DynamoQueries.UpdateBuilder _ build: (Columns) -> [DynamoQueries.UpdateAction],
+                    @DynamoQueries.ConditionBuilder where condition: (Columns) -> [DynamoQueries.Expression] = { _ in [] }
+                ) -> DynamoQueries.UpdateInput<\(typeName)> {
+                    DynamoQueries.UpdateInputBuilder.build(for: \(typeName).self, key: \(compositeKeyExpr), actions: build(columns), condition: condition(columns))
+                }
+
+                \(accessLevel)static func delete(
+                    partitionKey: some DynamoQueries.DynamoEncodable,
+                    sortKey: some DynamoQueries.DynamoEncodable,
+                    @DynamoQueries.ConditionBuilder where condition: (Columns) -> [DynamoQueries.Expression] = { _ in [] }
+                ) -> DynamoQueries.DeleteItemInput<\(typeName)> {
+                    DynamoQueries.DeleteItemInputBuilder.build(for: \(typeName).self, key: \(compositeKeyExpr), condition: condition(columns))
+                }
+            """
+        } else {
+            factoryBlock = """
+
+
+                \(accessLevel)static func get(partitionKey: some DynamoQueries.DynamoEncodable) -> DynamoQueries.GetItemInput<\(typeName)> {
+                    DynamoQueries.GetItemInput(tableName: _table.name, key: \(partitionKeyExpr))
+                }
+
+                \(accessLevel)static func update(
+                    partitionKey: some DynamoQueries.DynamoEncodable,
+                    @DynamoQueries.UpdateBuilder _ build: (Columns) -> [DynamoQueries.UpdateAction],
+                    @DynamoQueries.ConditionBuilder where condition: (Columns) -> [DynamoQueries.Expression] = { _ in [] }
+                ) -> DynamoQueries.UpdateInput<\(typeName)> {
+                    DynamoQueries.UpdateInputBuilder.build(for: \(typeName).self, key: \(partitionKeyExpr), actions: build(columns), condition: condition(columns))
+                }
+
+                \(accessLevel)static func delete(
+                    partitionKey: some DynamoQueries.DynamoEncodable,
+                    @DynamoQueries.ConditionBuilder where condition: (Columns) -> [DynamoQueries.Expression] = { _ in [] }
+                ) -> DynamoQueries.DeleteItemInput<\(typeName)> {
+                    DynamoQueries.DeleteItemInputBuilder.build(for: \(typeName).self, key: \(partitionKeyExpr), condition: condition(columns))
+                }
+            """
+        }
+
         let indexesBlock: String
         if indexes.isEmpty {
             indexesBlock = ""
@@ -180,7 +239,7 @@ public struct TableMacro: ExtensionMacro {
         \(columnDecls)
             }
 
-            \(accessLevel)static let columns = Columns()\(indexesBlock)
+            \(accessLevel)static let columns = Columns()\(indexesBlock)\(factoryBlock)
 
         \(accessorDecls)
         }
