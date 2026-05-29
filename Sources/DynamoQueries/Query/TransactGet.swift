@@ -17,6 +17,49 @@ public protocol ReadLeg<Output>: Sendable {
     func transform(_ storage: Storage) -> Output
 }
 
+extension ReadLeg {
+    /// The type-erased request for this leg, carrying the storage metatype so
+    /// the adapter can decode without a per-leg generic.
+    public var transactGetItem: TransactGetItem {
+        TransactGetItem(
+            tableName: getItemInput.tableName,
+            key: getItemInput.key,
+            projectionAttributes: getItemInput.projectionAttributes,
+            modelType: Storage.self
+        )
+    }
+}
+
+/// A type-erased read-transaction leg as it crosses the `DynamoClient`
+/// boundary: table, key, optional projection, and the storage model's metatype
+/// (so the adapter can decode the row back into it).
+///
+/// The transport is intentionally erased — a plain `[TransactGetItem]` in and a
+/// `[(any DynamoModel)?]` out — rather than a parameter-pack-generic method.
+/// That shape sidesteps a Swift codegen bug: passing an associated-type-
+/// projected pack (`repeat (each leg).Storage`) into an `async` existential call
+/// miscompiles into a double-free. `TransactGetInput.execute` rebuilds the typed
+/// tuple from the erased array on the near side, where no projected pack reaches
+/// the async call. Do not "simplify" this back to a variadic-generic method.
+public struct TransactGetItem: Sendable {
+    public let tableName: String
+    public let key: [String: DynamoValue]
+    public let projectionAttributes: [String]?
+    public let modelType: any DynamoModel.Type
+
+    public init(
+        tableName: String,
+        key: [String: DynamoValue],
+        projectionAttributes: [String]?,
+        modelType: any DynamoModel.Type
+    ) {
+        self.tableName = tableName
+        self.key = key
+        self.projectionAttributes = projectionAttributes
+        self.modelType = modelType
+    }
+}
+
 // MARK: - GetItemInput as an identity leg
 
 extension GetItemInput: ReadLeg {
@@ -121,16 +164,24 @@ extension TransactGetInput {
     public func execute(
         using client: any DynamoClient
     ) async throws -> (repeat (each Leg).Output?) {
-        let storage = try await client.transactGet(repeat (each legs).getItemInput)
-        return (repeat Self.apply(each storage, each legs))
-    }
+        // Build the erased request by appending over the leg pack (an array
+        // build — never a pack passed to the async call), then index-walk the
+        // erased results, recovering each leg's type via `as? Storage`. See the
+        // note on `TransactGetItem` for why the transport is erased.
+        var items: [TransactGetItem] = []
+        repeat items.append((each legs).transactGetItem)
 
-    /// Apply one leg's transform to its decoded storage item (if present).
-    private static func apply<L: ReadLeg>(
-        _ storage: L.Storage?,
-        _ leg: L
-    ) -> L.Output? {
-        storage.map(leg.transform)
+        let raws = try await client.transactGet(items)
+
+        var index = 0
+        func decodeNext<L: ReadLeg>(_ leg: L) -> L.Output? {
+            defer { index += 1 }
+            guard index < raws.count, let storage = raws[index] as? L.Storage else {
+                return nil
+            }
+            return leg.transform(storage)
+        }
+        return (repeat decodeNext(each legs))
     }
 }
 

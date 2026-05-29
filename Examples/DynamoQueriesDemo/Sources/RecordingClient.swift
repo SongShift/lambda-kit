@@ -71,12 +71,10 @@ actor RecordingClient: DynamoClient {
         print("TransactWrite legs=\(items.count)")
     }
 
-    func transactGet<each Model: DynamoModel>(
-        _ gets: repeat GetItemInput<each Model>
-    ) async throws -> (repeat (each Model)?) {
-        var tables: [String] = []
-        repeat tables.append((each gets).tableName)
-        print("TransactGet legs=\(tables.count) tables=\(tables)")
-        return (repeat Optional<each Model>.none)
+    func transactGet(
+        _ items: [TransactGetItem]
+    ) async throws -> [(any DynamoModel)?] {
+        print("TransactGet legs=\(items.count) tables=\(items.map(\.tableName))")
+        return items.map { _ in nil }
     }
 }

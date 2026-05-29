@@ -82,12 +82,15 @@ public protocol DynamoClient: Sendable {
     /// example because a conflicting write transaction is in flight) throws
     /// `TransactionCanceled`.
     ///
-    /// The legs keep their static `Model` types through a parameter pack, so
-    /// the result is a typed, heterogeneous tuple rather than an erased map —
-    /// `(repeat (each Model)?)`.
-    func transactGet<each Model: DynamoModel>(
-        _ gets: repeat GetItemInput<each Model>
-    ) async throws -> (repeat (each Model)?)
+    /// The transport is erased — a plain `[TransactGetItem]` (each carrying its
+    /// storage metatype) in, and a positionally-aligned `[(any DynamoModel)?]`
+    /// out, decoded by the adapter. The typed, ordered tuple the caller sees is
+    /// rebuilt by `TransactGetInput.execute`. Adapters must return one entry per
+    /// requested item, in request order, with `nil` for a key that matched no
+    /// item.
+    func transactGet(
+        _ items: [TransactGetItem]
+    ) async throws -> [(any DynamoModel)?]
 }
 
 // MARK: - Build entry points

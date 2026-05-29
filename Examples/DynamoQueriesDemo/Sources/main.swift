@@ -323,7 +323,7 @@ print("\n— Service: standalone read via mapped fetch (transform declared in re
 let domainHiker = try await service.hiker(id: "hiker-200")
 print("hiker found: \(domainHiker != nil)")
 
-print("\n— Service: snapshot (atomic read, service maps storage tuple to domain) -—")
+print("\n— Service: snapshot (atomic read; mapped legs deliver domain types) -——")
 let (snapHiker, snapHike) = try await service.snapshot(hikerID: "hiker-200", hikeID: "2026-001")
 print("snapshot → hiker=\(snapHiker != nil) hike=\(snapHike != nil)")
 
