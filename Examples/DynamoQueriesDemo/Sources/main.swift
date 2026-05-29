@@ -167,12 +167,6 @@ extension Hike {
 
 struct HikerRepository {
 
-    // MARK: Reads
-
-    // One mapped read leg per item. Because `.map` returns a `ReadLeg`, this
-    // single method works both standalone (`fetch(id:).execute(using:)`) AND
-    // composed inside a `TransactGet { ... }` snapshot — the transform rides
-    // along either way. No raw-vs-mapped split needed.
     func fetch(id: String) throws -> some ReadLeg<DomainHiker> {
         try Hiker.get(partitionKey: id).map { $0.toDomain() }
     }
@@ -212,6 +206,11 @@ struct HikeRepository {
 
     func fetchMany(keys: [(hikerID: String, hikeID: String)]) throws -> MappedRead<[DomainHike]> {
         try Hike.batchGet(keys: keys.map { (partitionKey: $0.hikerID, sortKey: $0.hikeID) })
+            .map { $0.toDomain() }
+    }
+
+    func scanByStatus(_ status: String) -> MappedRead<QueryPage<DomainHike>> {
+        Hike.scan { $0.status == status }
             .map { $0.toDomain() }
     }
 
@@ -260,6 +259,10 @@ struct TrailService {
 
     func roster(ids: [String]) async throws -> [DomainHiker] {
         try await hikers.fetchMany(ids: ids).execute(using: client)
+    }
+
+    func activeHikes() async throws -> [DomainHike] {
+        try await hikes.scanByStatus("in_progress").execute(using: client).items
     }
 
     func bulkLoad(
@@ -330,6 +333,10 @@ print("snapshot → hiker=\(snapHiker != nil) hike=\(snapHike != nil)")
 print("\n— Service: batch read — transform declared in repo, service just executes -")
 let roster = try await service.roster(ids: ["hiker-200", "hiker-201", "hiker-202"])
 print("roster loaded: \(roster.count)")
+
+print("\n— Service: scan — standalone read, can't be a TransactGet leg -—————————")
+let active = try await service.activeHikes()
+print("active hikes: \(active.count)")
 
 print("\n— Service: concurrent batch reads across both repos -———————————————————")
 let bulk = try await service.bulkLoad(
