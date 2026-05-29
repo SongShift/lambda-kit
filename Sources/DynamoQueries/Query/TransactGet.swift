@@ -18,6 +18,14 @@ public protocol ReadLeg<Output>: Sendable {
 }
 
 extension ReadLeg {
+    /// Run this single read on its own (outside a transaction). Returns `nil`
+    /// for a missing key; the transform is applied only to a present item.
+    /// Available on any `ReadLeg`, so an opaque `some ReadLeg<Output>` return
+    /// is fully usable — it composes in `TransactGet` *and* executes here.
+    public func execute(using client: any DynamoClient) async throws -> Output? {
+        try await getItemInput.execute(using: client).map(transform)
+    }
+
     /// The type-erased request for this leg, carrying the storage metatype so
     /// the adapter can decode without a per-leg generic.
     public var transactGetItem: TransactGetItem {
@@ -92,12 +100,6 @@ public struct MappedGet<Storage: DynamoModel, Output: Sendable>: ReadLeg {
         _ next: @Sendable @escaping (Output) -> Next
     ) -> MappedGet<Storage, Next> {
         MappedGet<Storage, Next>(getItemInput: getItemInput) { next(self._transform($0)) }
-    }
-
-    /// Execute this single read on its own. Returns `nil` for a missing key;
-    /// the transform is applied only to a present item.
-    public func execute(using client: any DynamoClient) async throws -> Output? {
-        try await getItemInput.execute(using: client).map(_transform)
     }
 }
 

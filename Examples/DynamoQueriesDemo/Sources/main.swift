@@ -173,7 +173,7 @@ struct HikerRepository {
     // single method works both standalone (`fetch(id:).execute(using:)`) AND
     // composed inside a `TransactGet { ... }` snapshot — the transform rides
     // along either way. No raw-vs-mapped split needed.
-    func fetch(id: String) throws -> MappedGet<Hiker, DomainHiker> {
+    func fetch(id: String) throws -> some ReadLeg<DomainHiker> {
         try Hiker.get(partitionKey: id).map { $0.toDomain() }
     }
 
@@ -206,7 +206,7 @@ struct HikeRepository {
 
     // MARK: Reads
 
-    func fetch(hikerID: String, hikeID: String) throws -> MappedGet<Hike, DomainHike> {
+    func fetch(hikerID: String, hikeID: String) throws -> some ReadLeg<DomainHike> {
         try Hike.get(partitionKey: hikerID, sortKey: hikeID).map { $0.toDomain() }
     }
 
