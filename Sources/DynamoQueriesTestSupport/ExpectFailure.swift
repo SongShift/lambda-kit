@@ -71,6 +71,56 @@ public func expectTransactionCancellation(
     throw TestExpectationFailure.operationDidNotThrow(expected: "TransactionCanceled")
 }
 
+/// Run `operation`, asserting it throws a ``DynamoFailure`` whose `reason`
+/// matches `reason`. Returns the failure so the caller can inspect its
+/// `message` or `isRetryable`. Pairs naturally with `FailingDynamoClient`:
+///
+///     let failure = try await expectDynamoFailure(.throttled) {
+///         try await service.refresh(using: FailingDynamoClient(reason: .throttled))
+///     }
+///     #expect(failure.isRetryable)
+///
+/// Same semantics as the other `expect*` helpers: if `operation` returns
+/// without throwing, throws ``TestExpectationFailure/operationDidNotThrow``; if
+/// it throws a different error — or a `DynamoFailure` with a *different* reason —
+/// that error propagates unchanged, so a wrong reason is distinguishable from a
+/// missing throw.
+public func expectDynamoFailure(
+    _ reason: DynamoFailure.Reason,
+    when operation: () async throws -> Void
+) async throws -> DynamoFailure {
+    do {
+        try await operation()
+    } catch let failure as DynamoFailure where failure.reason == reason {
+        return failure
+    }
+    throw TestExpectationFailure.operationDidNotThrow(expected: "DynamoFailure(reason: .\(reason))")
+}
+
+/// Run `operation`, asserting it throws an error of type `E`. Returns the typed
+/// error for further inspection. The generic catch-all behind the typed
+/// helpers — use it for your own error types or when the specific lambda-kit
+/// helper doesn't apply.
+///
+///     let error = try await expectError(MyServiceError.self) {
+///         try await service.run(using: FailingDynamoClient(reason: .accessDenied))
+///     }
+///
+/// Same semantics as the other `expect*` helpers: no throw →
+/// ``TestExpectationFailure/operationDidNotThrow``; a different error type
+/// propagates unchanged.
+public func expectError<E: Error>(
+    _ type: E.Type,
+    when operation: () async throws -> Void
+) async throws -> E {
+    do {
+        try await operation()
+    } catch let error as E {
+        return error
+    }
+    throw TestExpectationFailure.operationDidNotThrow(expected: "\(E.self)")
+}
+
 /// Error type used by the `expect*` helpers when an operation was expected
 /// to throw a specific lambda-kit error but instead returned normally. A
 /// mismatched error type isn't surfaced as a `TestExpectationFailure` — the
