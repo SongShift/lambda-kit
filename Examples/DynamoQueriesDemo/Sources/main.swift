@@ -2,13 +2,22 @@
 //  DynamoQueriesDemo
 //
 //  A tour of the major DynamoQueries operations. Runs against an in-memory
-//  RecordingClient that prints what each DSL call site renders to.
+//  RecordingDynamoClient from DynamoQueriesTestSupport and prints the rendered
+//  request log after each operation.
 //
 
 import Foundation
 import DynamoQueries
+import DynamoQueriesTestSupport
 
 // MARK: Models
+
+
+enum Rating: String, Codable, DynamoEncodable {
+    case easy
+    case expert
+    case intermediate
+}
 
 @Table("DemoHikers")
 @Index("emailIndex", partitionKey: "email")
@@ -28,13 +37,13 @@ struct Hike: Codable, Sendable {
     var trailName: String
     var distanceMiles: Double
     var elevationGainFeet: Int
-    var rating: Int
+    var rating: Rating
     var status: String
 }
 
 // MARK: Walk-through
 
-let client = RecordingClient()
+let client = RecordingDynamoClient()
 
 print("\n— Query: pk + begins_with(sk) + filter -—————————————————————————")
 _ = try await Hike.query { hike in
@@ -48,6 +57,8 @@ _ = try await Hike.query { hike in
     }
 }
 .execute(using: client)
+print(await client.transcript)
+await client.clearLog()
 
 print("\n— Query: GSI, descending, limit -——————————————————————————————————")
 _ = try await Hiker.query { hiker in
@@ -57,15 +68,19 @@ _ = try await Hiker.query { hiker in
 .scanIndexForward(false)
 .limit(10)
 .execute(using: client)
+print(await client.transcript)
+await client.clearLog()
 
 print("\n— PutItem: insert-only-if-not-present -—————————————————————————————")
 let newHiker = Hiker(
     id: "hiker-123",
     email: "ada@example.com",
     displayName: "Ada Lovelace",
-    createdAt: Date().timeIntervalSince1970
+    createdAt: 0
 )
 try await newHiker.put { h in h.id.doesNotExist }.execute(using: client)
+print(await client.transcript)
+await client.clearLog()
 
 print("\n— UpdateItem: optimistic-concurrency counter bump -—————————————————")
 try await Hiker.update(
@@ -77,12 +92,16 @@ try await Hiker.update(
     where: { $0.id.exists }
 )
 .execute(using: client)
+print(await client.transcript)
+await client.clearLog()
 
 print("\n— Scan: filter only, last-resort access pattern -———————————————————")
 _ = try await Hike.scan { h in
     h.status == "in_progress"
 }
 .execute(using: client)
+print(await client.transcript)
+await client.clearLog()
 
 print("\n— BatchWrite: bulk puts + a delete -————————————————————————————————")
 try await Hiker.batchWrite()
@@ -91,15 +110,17 @@ try await Hiker.batchWrite()
         id: "hiker-124",
         email: "grace@example.com",
         displayName: "Grace Hopper",
-        createdAt: Date().timeIntervalSince1970
+        createdAt: 0
     ))
     .delete(partitionKey: "hiker-deprecated")
     .execute(using: client)
+print(await client.transcript)
+await client.clearLog()
 
 print("\n— TransactWrite: atomic multi-table update -—————————————————————————")
 try await TransactWriteInput {
     newHiker.put { $0.id.doesNotExist }
-    try Hike.update(
+    Hike.update(
         partitionKey: "hiker-1",
         sortKey: "2026-001",
         { $0.status.set(to: "completed") }
@@ -110,15 +131,18 @@ try await TransactWriteInput {
     ) { $0.status == "in_progress" }
 }
 .execute(using: client)
+print(await client.transcript)
+await client.clearLog()
 
 print("\n— TransactGet: atomic, serializable multi-item read -—————————————————")
 
 let (snapshotHiker, snapshotHike): (Hiker?, Hike?) = try await TransactGet {
-    try Hiker.get(partitionKey: "hiker-123")
-    try Hike.get(partitionKey: "hiker-1", sortKey: "2026-001")
+    Hiker.get(partitionKey: "hiker-123")
+    Hike.get(partitionKey: "hiker-1", sortKey: "2026-001")
 }
 .execute(using: client)
-
+print(await client.transcript)
+await client.clearLog()
 print("hiker found: \(snapshotHiker != nil), hike found: \(snapshotHike != nil)")
 
 
@@ -134,30 +158,61 @@ print("hiker found: \(snapshotHiker != nil), hike found: \(snapshotHike != nil)"
 // a single all-or-nothing read or write if each repository committed its own
 // transaction, a later failure would leave partial state behind.
 
+// Domain model — what the service layer actually works with.  Repositories
+// convert between this and the DynamoDB storage model (Hiker / Hike).
+struct DomainHiker: Sendable {
+    var id: String
+    var email: String
+    var displayName: String
+    var hikeCount: Int
+    var isVerified: Bool
+}
+
+struct DomainHike: Sendable {
+    var hikerID: String
+    var hikeID: String
+    var trailName: String
+    var status: String
+}
+
+extension Hiker {
+    func toDomain() -> DomainHiker {
+        DomainHiker(id: id, email: email, displayName: displayName,
+                    hikeCount: hikeCount, isVerified: isVerified)
+    }
+}
+
+extension Hike {
+    func toDomain() -> DomainHike {
+        DomainHike(hikerID: hikerID, hikeID: hikeID,
+                   trailName: trailName, status: status)
+    }
+}
+
 struct HikerRepository {
 
-    func fetch(id: String) throws -> GetItemInput<Hiker> {
-        try Hiker.get(partitionKey: id)
+    func fetch(id: String) -> some Read<DomainHiker> {
+        Hiker.get(partitionKey: id).map { $0.toDomain() }
     }
 
-    func fetchMany(ids: [String]) throws -> BatchGetInput<Hiker> {
-        try Hiker.batchGet(partitionKeys: ids)
+    func fetchMany(ids: [String]) throws -> some BatchRead<DomainHiker> {
+        try Hiker.batchGet(partitionKeys: ids).map { $0.toDomain() }
     }
 
-    // MARK: Writes — return writables the service composes into one transaction.
+    // MARK: Writes
 
     func create(_ hiker: Hiker) -> PutItemInput<Hiker> {
         hiker.put { $0.id.doesNotExist }
     }
 
-    func markVerified(id: String) throws -> UpdateInput<Hiker> {
-        try Hiker.update(partitionKey: id) {
+    func markVerified(id: String) -> UpdateInput<Hiker> {
+        Hiker.update(partitionKey: id) {
             $0.isVerified.set(to: true)
         } where: { $0.id.exists }
     }
 
-    func incrementHikeCount(id: String) throws -> UpdateInput<Hiker> {
-        try Hiker.update(partitionKey: id) {
+    func incrementHikeCount(id: String) -> UpdateInput<Hiker> {
+        Hiker.update(partitionKey: id) {
             $0.hikeCount.add(1)
         } where: { $0.id.exists }
     }
@@ -165,91 +220,178 @@ struct HikerRepository {
 
 struct HikeRepository {
 
-    func fetch(hikerID: String, hikeID: String) throws -> GetItemInput<Hike> {
-        try Hike.get(partitionKey: hikerID, sortKey: hikeID)
+    // MARK: Reads
+
+    func fetch(hikerID: String, hikeID: String) -> some Read<DomainHike> {
+        Hike.get(partitionKey: hikerID, sortKey: hikeID).map { $0.toDomain() }
     }
 
-    func fetchMany(keys: [(hikerID: String, hikeID: String)]) throws -> BatchGetInput<Hike> {
+    func fetchMany(keys: [(hikerID: String, hikeID: String)]) throws -> some BatchRead<DomainHike> {
         try Hike.batchGet(keys: keys.map { (partitionKey: $0.hikerID, sortKey: $0.hikeID) })
+            .map { $0.toDomain() }
     }
 
-    func record(_ hike: Hike) -> any TransactWritable {
-        hike.put { $0.hikeID.doesNotExist }
+
+    func scanByStatus(_ status: String) -> some PagedRead<DomainHike> {
+        Hike.scan { $0.rating == .easy }
+            .map { $0.toDomain() }
     }
 
-    func setStatus(hikerID: String, hikeID: String, to status: String) throws -> UpdateInput<Hike> {
-        try Hike.update(partitionKey: hikerID, sortKey: hikeID) {
+    // MARK: Writes
+
+    func record(_ hike: Hike) -> PutItemInput<Hike> {
+       return hike.put { $0.hikeID.doesNotExist }
+    }
+
+    func setStatus(hikerID: String, hikeID: String, to status: String) -> UpdateInput<Hike> {
+        Hike.update(partitionKey: hikerID, sortKey: hikeID) {
             $0.status.set(to: status)
         } where: { $0.hikerID.exists }
     }
 
-    /// One leg per id — the array flattens automatically inside a write block.
-    func cancelMany(_ ids: [(hikerID: String, hikeID: String)]) throws -> [UpdateInput<Hike>] {
-        try ids.map { id in
-            try Hike.update(partitionKey: id.hikerID, sortKey: id.hikeID) {
+    func cancelMany(_ ids: [(hikerID: String, hikeID: String)]) -> [UpdateInput<Hike>] {
+        ids.map { id in
+            Hike.update(partitionKey: id.hikerID, sortKey: id.hikeID) {
                 $0.status.set(to: "cancelled")
             }
         }
     }
 }
 
-/// A unit-of-work service composed over both repositories. It owns the client
-/// and every transaction boundary; the repositories below it stay ignorant of
-/// both.
 struct TrailService {
     let client: any DynamoClient
     let hikers: HikerRepository
     let hikes: HikeRepository
 
-
-    func snapshot(hikerID: String, hikeID: String) async throws -> (Hiker?, Hike?) {
+    func snapshot(hikerID: String, hikeID: String) async throws -> (DomainHiker?, DomainHike?) {
         try await TransactGet {
-            try hikers.fetch(id: hikerID)
-            try hikes.fetch(hikerID: hikerID, hikeID: hikeID)
+            hikers.fetch(id: hikerID)
+            hikes.fetch(hikerID: hikerID, hikeID: hikeID)
         }
         .execute(using: client)
     }
 
-    func roster(ids: [String]) async throws -> [Hiker] {
+    func hiker(id: String) async throws -> DomainHiker? {
+        try await hikers.fetch(id: id).execute(using: client)
+    }
+
+    func roster(ids: [String]) async throws -> [DomainHiker] {
         try await hikers.fetchMany(ids: ids).execute(using: client)
+    }
+
+    func activeHikes() async throws -> [DomainHike] {
+        try await hikes.scanByStatus("in_progress").executeAll(using: client)
     }
 
     func bulkLoad(
         hikerIDs: [String],
         hikeKeys: [(hikerID: String, hikeID: String)]
-    ) async throws -> (hikers: [Hiker], hikes: [Hike]) {
+    ) async throws -> (hikers: [DomainHiker], hikes: [DomainHike]) {
         async let people = hikers.fetchMany(ids: hikerIDs).execute(using: client)
         async let logged = hikes.fetchMany(keys: hikeKeys).execute(using: client)
         return try await (people, logged)
     }
 
-    /// Insert the hiker, record their first hike, and flip the
-    /// hiker to verified — all or nothing, legs drawn from both repositories.
     func registerFirstHike(_ hiker: Hiker, firstHike: Hike) async throws {
         try await TransactWriteInput {
             hikers.create(hiker)
             hikes.record(firstHike)
-            try hikers.markVerified(id: hiker.id)
+            hikers.markVerified(id: hiker.id)
         }
         .execute(using: client)
     }
 
-    /// Read *and* write in the same operation. The service runs an atomic read
-    /// to load current state, then commits an atomic write — two distinct
-    /// boundaries it alone controls. 
+    // Atomic read to load current state; atomic write to commit the transition.
+    // The guard on the snapshot result is where business logic would live in a
+    // real implementation — e.g. checking hike.status before allowing completion.
     func completeHike(hikerID: String, hikeID: String) async throws {
         let (hiker, hike) = try await snapshot(hikerID: hikerID, hikeID: hikeID)
-      
-        guard let hiker, let hike else {
-            return
-        }
-        
-        print(hiker, hike)
-        
+        print("  snapshot → hiker=\(hiker != nil) hike=\(hike != nil)")
+        guard hiker != nil, hike != nil else { return }
+
         try await TransactWriteInput {
-            try hikes.setStatus(hikerID: hikerID, hikeID: hikeID, to: "completed")
-            try hikers.incrementHikeCount(id: hikerID)
+            hikes.setStatus(hikerID: hikerID, hikeID: hikeID, to: "completed")
+            hikers.incrementHikeCount(id: hikerID)
         }
         .execute(using: client)
     }
 }
+
+let hikerRepo = HikerRepository()
+let hikeRepo = HikeRepository()
+let service = TrailService(client: client, hikers: hikerRepo, hikes: hikeRepo)
+
+let edith = Hiker(
+    id: "hiker-200",
+    email: "edith@example.com",
+    displayName: "Edith Clarke",
+    createdAt: 0
+)
+let firstHike = Hike(
+    hikerID: "hiker-200",
+    hikeID: "2026-001",
+    trailName: "Skyline",
+    distanceMiles: 7.2,
+    elevationGainFeet: 900,
+    rating: .easy,
+    status: "in_progress"
+)
+
+print("\n— Service: register first hike (atomic write across both repos) -—————————")
+try await service.registerFirstHike(edith, firstHike: firstHike)
+print(await client.transcript)
+await client.clearLog()
+
+print("\n— Service: standalone read via mapped fetch (transform declared in repo) -")
+let domainHiker = try await service.hiker(id: "hiker-200")
+print(await client.transcript)
+await client.clearLog()
+print("hiker found: \(domainHiker != nil)")
+
+print("\n— Service: snapshot (atomic read; mapped legs deliver domain types) -——")
+let (snapHiker, snapHike) = try await service.snapshot(hikerID: "hiker-200", hikeID: "2026-001")
+print(await client.transcript)
+await client.clearLog()
+print("snapshot → hiker=\(snapHiker != nil) hike=\(snapHike != nil)")
+
+print("\n— Service: batch read — transform declared in repo, service just executes -")
+let roster = try await service.roster(ids: ["hiker-200", "hiker-201", "hiker-202"])
+print(await client.transcript)
+await client.clearLog()
+print("roster loaded: \(roster.count)")
+
+print("\n— Service: scan — standalone read, can't be a TransactGet leg -—————————")
+let active = try await service.activeHikes()
+print(await client.transcript)
+await client.clearLog()
+print("active hikes: \(active.count)")
+
+print("\n— Service: concurrent batch reads across both repos -———————————————————")
+let bulk = try await service.bulkLoad(
+    hikerIDs: ["hiker-200", "hiker-201"],
+    hikeKeys: [
+        (hikerID: "hiker-200", hikeID: "2026-001"),
+        (hikerID: "hiker-200", hikeID: "2026-002"),
+    ]
+)
+print(await client.transcript)
+await client.clearLog()
+print("bulk loaded: hikers=\(bulk.hikers.count) hikes=\(bulk.hikes.count)")
+
+print("\n— Service: complete hike (atomic read then atomic write) -—————————————")
+try await service.completeHike(hikerID: "hiker-200", hikeID: "2026-001")
+print(await client.transcript)
+await client.clearLog()
+
+print("\n— Repository: array of writables flattens automatically -——————————————")
+try await TransactWriteInput {
+    hikeRepo.cancelMany([
+        (hikerID: "hiker-200", hikeID: "2026-002"),
+        (hikerID: "hiker-200", hikeID: "2026-003"),
+    ])
+}
+.execute(using: client)
+print(await client.transcript)
+await client.clearLog()
+
+print("\nDone.\n")

@@ -512,20 +512,25 @@ public struct SotoDynamoClient: DynamoClient {
         }
     }
 
-    public func transactGet<each Model: DynamoModel>(
-        _ gets: repeat GetItemInput<each Model>
-    ) async throws -> (repeat (each Model)?) {
-        // Lower each typed leg into a Soto `Get`, applying the configured table
-        // suffix. The pack is walked in declaration order, so `sotoItems` lines
-        // up 1:1 with the legs — which DynamoDB mirrors back in `responses`.
-        var sotoItems: [DynamoDB.TransactGetItem] = []
-        repeat sotoItems.append(
-            DynamoDB.TransactGetItem(
-                get: (each gets).toSotoGet(
-                    tableNameOverride: self.resolveTableName((each gets).tableName)
-                )
+    public func transactGet(
+        _ items: [DynamoQueries.TransactGetItem]
+    ) async throws -> [(any DynamoModel)?] {
+        // Lower each erased leg into a Soto `Get`, applying the configured table
+        // suffix and projection. `sotoItems` lines up 1:1 with `items`, which
+        // DynamoDB mirrors back in `responses`.
+        let sotoItems = items.map { item -> DynamoDB.TransactGetItem in
+            let resolved = self.resolveTableName(item.tableName)
+            let (projection, names) = resolveProjection(
+                attributes: item.projectionAttributes,
+                existingNames: [:]
             )
-        )
+            return DynamoDB.TransactGetItem(get: DynamoDB.Get(
+                expressionAttributeNames: names.isEmpty ? nil : names,
+                key: item.key.mapValues { $0.toSotoAttributeValue() },
+                projectionExpression: projection,
+                tableName: resolved
+            ))
+        }
 
         let output = try await translatingDynamoFailures {
             try await translatingTransactionFailures {
@@ -535,21 +540,34 @@ public struct SotoDynamoClient: DynamoClient {
             }
         }
 
-        // Re-decode the ordered responses back into the leg types. DynamoDB
-        // returns one `ItemResponse` per requested item, in request order, so a
-        // left-to-right index walk over the pack stays aligned. A leg with no
-        // item (`nil`/empty) decodes to `nil`.
+        // Decode the ordered responses via each leg's storage metatype. One
+        // `ItemResponse` per requested item, in request order; a missing/empty
+        // item decodes to `nil`.
         let responses = output.responses ?? []
-        var index = 0
-        func decodeNext<M: DynamoModel>(_ type: M.Type) throws -> M? {
-            defer { index += 1 }
+        var results: [(any DynamoModel)?] = []
+        for (index, item) in items.enumerated() {
             guard index < responses.count,
-                  let item = responses[index].item,
-                  !item.isEmpty
-            else { return nil }
-            return try DynamoDecoder.decode(M.self, from: item)
+                  let raw = responses[index].item,
+                  !raw.isEmpty
+            else {
+                results.append(nil)
+                continue
+            }
+            results.append(try Self.decodeErased(item.modelType, from: raw))
         }
-        return (repeat try decodeNext((each Model).self))
+        return results
+    }
+
+    /// Decode a raw item into a dynamically-typed `DynamoModel` by opening the
+    /// metatype existential into the generic `DynamoDecoder`.
+    private static func decodeErased(
+        _ type: any DynamoModel.Type,
+        from item: [String: DynamoDB.AttributeValue]
+    ) throws -> any DynamoModel {
+        func open<M: DynamoModel>(_ concrete: M.Type) throws -> any DynamoModel {
+            try DynamoDecoder.decode(M.self, from: item)
+        }
+        return try open(type)
     }
 
     public func batchWrite<Model: DynamoModel>(

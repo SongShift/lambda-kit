@@ -100,7 +100,7 @@ func registerRoutes(on builder: HTTPRouterBuilder, using db: any DynamoClient) {
 
         try await TransactWriteInput {
             hike.put { hike in hike.hikeId.doesNotExist }
-            try HikeCount.update(
+            HikeCount.update(
                 partitionKey: hikerID,
                 sortKey: dayKey,
                 {

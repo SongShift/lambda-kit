@@ -1,5 +1,6 @@
 import DynamoQueries
 import DynamoQueriesSoto
+import DynamoQueriesTestSupport
 import Foundation
 import SotoDynamoDB
 import Testing
@@ -909,12 +910,12 @@ struct TransactWriteTests {
         )
         try await TransactWriteInput {
             chart.put { column in column.cardTokenHash.doesNotExist }
-            try PhotoScan.update(partitionKey: "scan-abc") { column in
+            PhotoScan.update(partitionKey: "scan-abc") { column in
                 column.status.set(to: "processing")
             } where: { column in
                 column.status != "processing"
             }
-            try HikerHandle.delete(partitionKey: "alice") { column in
+            HikerHandle.delete(partitionKey: "alice") { column in
                 column.hikerId == "hiker-OTHER"
             }
             try DifficultyScore.conditionCheck(partitionKey: "score-1") { column in
@@ -959,7 +960,7 @@ struct TransactWriteTests {
         do {
             try await TransactWriteInput {
                 chart.put { column in column.cardTokenHash.doesNotExist }
-                try PhotoScan.update(partitionKey: "scan-abc") { column in
+                PhotoScan.update(partitionKey: "scan-abc") { column in
                     column.status.set(to: "processing")
                 } where: { column in
                     column.status != "processing"
@@ -1064,7 +1065,7 @@ struct UpdateReturnValuesTests {
 
     @Test("returnNewValues() flips ReturnValues = ALL_NEW on the wire")
     func returnNewValuesAllNew() async throws {
-        let returning = try PhotoScan.update(partitionKey: "scan-abc") { column in
+        let returning = PhotoScan.update(partitionKey: "scan-abc") { column in
             column.status.set(to: "processing")
         }
         .returnNewValues()
@@ -1074,7 +1075,7 @@ struct UpdateReturnValuesTests {
 
     @Test("returnOldValues() flips ReturnValues = ALL_OLD on the wire")
     func returnOldValuesAllOld() async throws {
-        let returning = try PhotoScan.update(partitionKey: "scan-abc") { column in
+        let returning = PhotoScan.update(partitionKey: "scan-abc") { column in
             column.status.set(to: "processing")
         }
         .returnOldValues()
@@ -1084,7 +1085,7 @@ struct UpdateReturnValuesTests {
 
     @Test("returnUpdatedNewValues() flips ReturnValues = UPDATED_NEW")
     func returnUpdatedNewValues() async throws {
-        let returning = try PhotoScan.update(partitionKey: "scan-abc") { column in
+        let returning = PhotoScan.update(partitionKey: "scan-abc") { column in
             column.status.set(to: "processing")
         }
         .returnUpdatedNewValues()

@@ -64,13 +64,19 @@ extension PaginationToken: Codable {
 /// loop until they get a `nil` token, not until `items` is empty — DynamoDB can
 /// return an empty page with a non-nil token (e.g. when a filter eliminates
 /// every item in the scanned window).
-public struct QueryPage<Model: DynamoModel>: Sendable {
-    public let items: [Model]
+public struct QueryPage<Item: Sendable>: Sendable {
+    public let items: [Item]
     public let nextToken: PaginationToken?
 
-    public init(items: [Model], nextToken: PaginationToken?) {
+    public init(items: [Item], nextToken: PaginationToken?) {
         self.items = items
         self.nextToken = nextToken
+    }
+
+    public func map<Output: Sendable>(
+        _ transform: (Item) -> Output
+    ) -> QueryPage<Output> {
+        QueryPage<Output>(items: items.map(transform), nextToken: nextToken)
     }
 }
 
