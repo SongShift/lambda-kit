@@ -12,6 +12,13 @@ import DynamoQueriesTestSupport
 
 // MARK: Models
 
+
+enum Rating: String, Codable, DynamoEncodable {
+    case easy
+    case expert
+    case intermediate
+}
+
 @Table("DemoHikers")
 @Index("emailIndex", partitionKey: "email")
 struct Hiker: Codable, Sendable {
@@ -30,7 +37,7 @@ struct Hike: Codable, Sendable {
     var trailName: String
     var distanceMiles: Double
     var elevationGainFeet: Int
-    var rating: Int
+    var rating: Rating
     var status: String
 }
 
@@ -226,7 +233,7 @@ struct HikeRepository {
 
 
     func scanByStatus(_ status: String) -> some PagedRead<DomainHike> {
-        Hike.scan { $0.status == status }
+        Hike.scan { $0.rating == .easy }
             .map { $0.toDomain() }
     }
 
@@ -326,7 +333,7 @@ let firstHike = Hike(
     trailName: "Skyline",
     distanceMiles: 7.2,
     elevationGainFeet: 900,
-    rating: 4,
+    rating: .easy,
     status: "in_progress"
 )
 

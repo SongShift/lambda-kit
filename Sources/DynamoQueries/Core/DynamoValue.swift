@@ -151,6 +151,10 @@ extension Date: DynamoEncodable {
     }
 }
 
+extension DynamoEncodable where Self: RawRepresentable, RawValue: DynamoEncodable {
+    public func toDynamoValue() -> DynamoValue { rawValue.toDynamoValue() }
+}
+
 // MARK: - Collections
 
 extension Array: DynamoEncodable where Element: DynamoEncodable {
