@@ -167,13 +167,17 @@ extension Hike {
 
 struct HikerRepository {
 
-    func fetch(id: String) throws -> some ReadLeg<DomainHiker> {
+    // `.map` on a get returns a `MappedGet`, which conforms to `ReadLeg` — so
+    // this composes into a `TransactGet { ... }` snapshot *and* runs standalone,
+    // delivering the domain type either way.
+    func fetch(id: String) throws -> MappedGet<Hiker, DomainHiker> {
         try Hiker.get(partitionKey: id).map { $0.toDomain() }
     }
 
-    // Batch reads can't compose into a get-transaction, so they stay a plain
-    // mapped read.
-    func fetchMany(ids: [String]) throws -> MappedRead<[DomainHiker]> {
+    // `.map` on a batch get returns a `MappedBatchGet`, mirroring the batch
+    // terminal: `.execute → [DomainHiker]`. (Batch reads can't be a TransactGet
+    // leg — that's gets only.)
+    func fetchMany(ids: [String]) throws -> MappedBatchGet<Hiker, DomainHiker> {
         try Hiker.batchGet(partitionKeys: ids).map { $0.toDomain() }
     }
 
@@ -200,16 +204,20 @@ struct HikeRepository {
 
     // MARK: Reads
 
-    func fetch(hikerID: String, hikeID: String) throws -> some ReadLeg<DomainHike> {
+    func fetch(hikerID: String, hikeID: String) throws -> MappedGet<Hike, DomainHike> {
         try Hike.get(partitionKey: hikerID, sortKey: hikeID).map { $0.toDomain() }
     }
 
-    func fetchMany(keys: [(hikerID: String, hikeID: String)]) throws -> MappedRead<[DomainHike]> {
+    func fetchMany(keys: [(hikerID: String, hikeID: String)]) throws -> MappedBatchGet<Hike, DomainHike> {
         try Hike.batchGet(keys: keys.map { (partitionKey: $0.hikerID, sortKey: $0.hikeID) })
             .map { $0.toDomain() }
     }
 
-    func scanByStatus(_ status: String) -> MappedRead<QueryPage<DomainHike>> {
+    // A scan can't be a TransactGet leg (gets only), but `.map` returns a
+    // `MappedScan` that keeps the scan's *full* surface — `.execute →
+    // QueryPage<DomainHike>`, `.executeAll → [DomainHike]`, `.pages`, `.count` —
+    // all yielding the domain type. Nothing hidden behind an opaque wrapper.
+    func scanByStatus(_ status: String) -> MappedScan<Hike, DomainHike> {
         Hike.scan { $0.status == status }
             .map { $0.toDomain() }
     }
@@ -262,7 +270,9 @@ struct TrailService {
     }
 
     func activeHikes() async throws -> [DomainHike] {
-        try await hikes.scanByStatus("in_progress").execute(using: client).items
+        // `.executeAll` auto-paginates and returns domain types directly — a
+        // terminal the old closure-based mapped read had thrown away.
+        try await hikes.scanByStatus("in_progress").executeAll(using: client)
     }
 
     func bulkLoad(
