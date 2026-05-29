@@ -14,7 +14,7 @@
 ///     let all = try await repo.recent().executeAll(using: client)   // [DomainHike]
 ///
 /// Single-item gets use `MappedGet` instead, because a get can *also* compose
-/// into a `TransactGet { ... }` block (it conforms to `ReadLeg`); these
+/// into a `TransactGet { ... }` block (it conforms to `Read`); these
 /// collection reads cannot, so they only need their standalone terminals.
 
 // MARK: - Mapped paged page sequence

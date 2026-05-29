@@ -5,7 +5,7 @@
 ///
 /// `Storage` is the on-table model the adapter decodes; `Output` is what the
 /// caller actually receives. For an un-mapped get the two coincide.
-public protocol ReadLeg<Output>: Sendable {
+public protocol Read<Output>: Sendable {
     associatedtype Storage: DynamoModel
     associatedtype Output: Sendable
 
@@ -17,10 +17,10 @@ public protocol ReadLeg<Output>: Sendable {
     func transform(_ storage: Storage) -> Output
 }
 
-extension ReadLeg {
+extension Read {
     /// Run this single read on its own (outside a transaction). Returns `nil`
     /// for a missing key; the transform is applied only to a present item.
-    /// Available on any `ReadLeg`, so an opaque `some ReadLeg<Output>` return
+    /// Available on any `Read`, so an opaque `some Read<Output>` return
     /// is fully usable — it composes in `TransactGet` *and* executes here.
     public func execute(using client: any DynamoClient) async throws -> Output? {
         try await getItemInput.execute(using: client).map(transform)
@@ -70,7 +70,7 @@ public struct TransactGetItem: Sendable {
 
 // MARK: - GetItemInput as an identity leg
 
-extension GetItemInput: ReadLeg {
+extension GetItemInput: Read {
     public var getItemInput: GetItemInput<Model> { self }
     public func transform(_ storage: Model) -> Model { storage }
 }
@@ -78,10 +78,10 @@ extension GetItemInput: ReadLeg {
 // MARK: - MappedGet
 
 /// A `GetItemInput` with a transform applied to its result. Produced by
-/// `GetItemInput.map`. Conforms to `ReadLeg`, so it composes in a
+/// `GetItemInput.map`. Conforms to `Read`, so it composes in a
 /// `TransactGet { ... }` block exactly like a raw get, and also runs standalone
 /// via `execute(using:)`.
-public struct MappedGet<Storage: DynamoModel, Output: Sendable>: ReadLeg {
+public struct MappedGet<Storage: DynamoModel, Output: Sendable>: Read {
     public let getItemInput: GetItemInput<Storage>
     private let _transform: @Sendable (Storage) -> Output
 
@@ -133,14 +133,14 @@ extension GetItemInput {
 ///     }
 ///     .execute(using: client)
 ///
-/// Legs are `ReadLeg`s: a raw `GetItemInput` (delivered as its model) or a
+/// Legs are `Read`s: a raw `GetItemInput` (delivered as its model) or a
 /// `.map`-ped leg (delivered as the mapped output) compose identically. Each
 /// leg's `.project(_:)` works; `.consistentRead()` is accepted but ignored
 /// (`TransactGetItems` is always serializable).
 ///
 /// DynamoDB requires between 1 and 100 legs. A canceled read transaction
 /// surfaces as `TransactionCanceled`.
-public struct TransactGetInput<each Leg: ReadLeg>: Sendable {
+public struct TransactGetInput<each Leg: Read>: Sendable {
     public let legs: (repeat each Leg)
 
     /// Build from an explicit, comma-separated list of legs.
@@ -176,7 +176,7 @@ extension TransactGetInput {
         let raws = try await client.transactGet(items)
 
         var index = 0
-        func decodeNext<L: ReadLeg>(_ leg: L) -> L.Output? {
+        func decodeNext<L: Read>(_ leg: L) -> L.Output? {
             defer { index += 1 }
             guard index < raws.count, let storage = raws[index] as? L.Storage else {
                 return nil
@@ -195,9 +195,9 @@ extension TransactGetInput {
 /// expressed — and shouldn't be, since the caller binds the result positionally.
 @resultBuilder
 public enum TransactGetBuilder {
-    public static func buildExpression<Leg: ReadLeg>(_ leg: Leg) -> Leg { leg }
+    public static func buildExpression<Leg: Read>(_ leg: Leg) -> Leg { leg }
 
-    public static func buildBlock<each Leg: ReadLeg>(
+    public static func buildBlock<each Leg: Read>(
         _ legs: repeat each Leg
     ) -> (repeat each Leg) {
         (repeat each legs)
@@ -206,4 +206,4 @@ public enum TransactGetBuilder {
 
 /// Spelling that mirrors the `TransactWriteInput { ... }` write side at the
 /// call site: `TransactGet { ... }`.
-public typealias TransactGet<each Leg: ReadLeg> = TransactGetInput<repeat each Leg>
+public typealias TransactGet<each Leg: Read> = TransactGetInput<repeat each Leg>

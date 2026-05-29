@@ -167,12 +167,11 @@ extension Hike {
 
 struct HikerRepository {
 
-    func fetch(id: String) throws -> MappedGet<Hiker, DomainHiker> {
+    func fetch(id: String) throws -> some Read<DomainHiker> {
         try Hiker.get(partitionKey: id).map { $0.toDomain() }
     }
 
-    
-    func fetchMany(ids: [String]) throws -> MappedBatchGet<Hiker, DomainHiker> {
+    func fetchMany(ids: [String]) throws -> some BatchRead<DomainHiker> {
         try Hiker.batchGet(partitionKeys: ids).map { $0.toDomain() }
     }
 
@@ -199,16 +198,17 @@ struct HikeRepository {
 
     // MARK: Reads
 
-    func fetch(hikerID: String, hikeID: String) throws -> MappedGet<Hike, DomainHike> {
+    func fetch(hikerID: String, hikeID: String) throws -> some Read<DomainHike> {
         try Hike.get(partitionKey: hikerID, sortKey: hikeID).map { $0.toDomain() }
     }
 
-    func fetchMany(keys: [(hikerID: String, hikeID: String)]) throws -> MappedBatchGet<Hike, DomainHike> {
+    func fetchMany(keys: [(hikerID: String, hikeID: String)]) throws -> some BatchRead<DomainHike> {
         try Hike.batchGet(keys: keys.map { (partitionKey: $0.hikerID, sortKey: $0.hikeID) })
             .map { $0.toDomain() }
     }
 
-    func scanByStatus(_ status: String) -> MappedScan<Hike, DomainHike> {
+
+    func scanByStatus(_ status: String) -> some PagedRead<DomainHike> {
         Hike.scan { $0.status == status }
             .map { $0.toDomain() }
     }
