@@ -167,16 +167,11 @@ extension Hike {
 
 struct HikerRepository {
 
-    // `.map` on a get returns a `MappedGet`, which conforms to `ReadLeg` — so
-    // this composes into a `TransactGet { ... }` snapshot *and* runs standalone,
-    // delivering the domain type either way.
     func fetch(id: String) throws -> MappedGet<Hiker, DomainHiker> {
         try Hiker.get(partitionKey: id).map { $0.toDomain() }
     }
 
-    // `.map` on a batch get returns a `MappedBatchGet`, mirroring the batch
-    // terminal: `.execute → [DomainHiker]`. (Batch reads can't be a TransactGet
-    // leg — that's gets only.)
+    
     func fetchMany(ids: [String]) throws -> MappedBatchGet<Hiker, DomainHiker> {
         try Hiker.batchGet(partitionKeys: ids).map { $0.toDomain() }
     }
@@ -213,10 +208,6 @@ struct HikeRepository {
             .map { $0.toDomain() }
     }
 
-    // A scan can't be a TransactGet leg (gets only), but `.map` returns a
-    // `MappedScan` that keeps the scan's *full* surface — `.execute →
-    // QueryPage<DomainHike>`, `.executeAll → [DomainHike]`, `.pages`, `.count` —
-    // all yielding the domain type. Nothing hidden behind an opaque wrapper.
     func scanByStatus(_ status: String) -> MappedScan<Hike, DomainHike> {
         Hike.scan { $0.status == status }
             .map { $0.toDomain() }
@@ -224,8 +215,8 @@ struct HikeRepository {
 
     // MARK: Writes
 
-    func record(_ hike: Hike) -> any TransactWritable {
-        hike.put { $0.hikeID.doesNotExist }
+    func record(_ hike: Hike) -> PutItemInput<Hike> {
+       return hike.put { $0.hikeID.doesNotExist }
     }
 
     func setStatus(hikerID: String, hikeID: String, to status: String) throws -> UpdateInput<Hike> {
@@ -248,10 +239,6 @@ struct TrailService {
     let hikers: HikerRepository
     let hikes: HikeRepository
 
-    // Atomic snapshot: the SAME `fetch` legs the service uses for standalone
-    // reads compose directly into one TransactGetItems call. The transform
-    // rides along each leg, so the tuple comes back as domain types — the
-    // service does no mapping of its own.
     func snapshot(hikerID: String, hikeID: String) async throws -> (DomainHiker?, DomainHike?) {
         try await TransactGet {
             try hikers.fetch(id: hikerID)
@@ -260,7 +247,6 @@ struct TrailService {
         .execute(using: client)
     }
 
-    // Standalone read: the exact same leg, executed on its own.
     func hiker(id: String) async throws -> DomainHiker? {
         try await hikers.fetch(id: id).execute(using: client)
     }
@@ -270,8 +256,6 @@ struct TrailService {
     }
 
     func activeHikes() async throws -> [DomainHike] {
-        // `.executeAll` auto-paginates and returns domain types directly — a
-        // terminal the old closure-based mapped read had thrown away.
         try await hikes.scanByStatus("in_progress").executeAll(using: client)
     }
 
