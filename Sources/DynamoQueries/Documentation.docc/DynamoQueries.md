@@ -86,7 +86,7 @@ Issue a transactional write:
 ```swift
 try await TransactWriteInput {
     order.put { $0.orderID.doesNotExist }
-    try Customer.update(partitionKey: order.customerID) {
+    Customer.update(partitionKey: order.customerID) {
         $0.lifetimeValue.add(order.total)
     }
 }

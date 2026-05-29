@@ -157,7 +157,7 @@ table. Build with the ``TransactWriteBuilder`` result builder:
 ```swift
 try await TransactWriteInput {
     user.put { $0.id.doesNotExist }
-    try Account.update(partitionKey: user.id) { $0.userCount.add(1) }
+    Account.update(partitionKey: user.id) { $0.userCount.add(1) }
     try AuditLog.conditionCheck(partitionKey: "system") { $0.frozen != true }
 }
 .execute(using: client)
@@ -200,19 +200,19 @@ struct HikerRepository {
     }
 
     // Multi-leg: nested TransactWriteInput is itself a TransactWritable.
-    func logHike(_ hike: Hike) throws -> any TransactWritable {
-        try TransactWriteInput {
+    func logHike(_ hike: Hike) -> any TransactWritable {
+        TransactWriteInput {
             hike.put { $0.hikeID.doesNotExist }
-            try Hiker.update(partitionKey: hike.hikerID) {
+            Hiker.update(partitionKey: hike.hikerID) {
                 $0.hikeCount.add(1)
             } where: { $0.id.exists }
         }
     }
 
     // Homogeneous list — flattens via Array's conditional conformance.
-    func cancel(_ hikes: [(hikerID: String, hikeID: String)]) throws -> any TransactWritable {
-        try hikes.map { ids in
-            try Hike.update(partitionKey: ids.hikerID, sortKey: ids.hikeID) {
+    func cancel(_ hikes: [(hikerID: String, hikeID: String)]) -> any TransactWritable {
+        hikes.map { ids in
+            Hike.update(partitionKey: ids.hikerID, sortKey: ids.hikeID) {
                 $0.status.set(to: "cancelled")
             }
         }
@@ -225,8 +225,8 @@ Composing at the call site:
 ```swift
 try await TransactWriteInput {
     repo.create(newHiker)            // 1 leg
-    try repo.logHike(recordedHike)   // 2 legs (nested TransactWriteInput)
-    try repo.cancel(staleHikes)      // N legs (array of UpdateInput)
+    repo.logHike(recordedHike)       // 2 legs (nested TransactWriteInput)
+    repo.cancel(staleHikes)          // N legs (array of UpdateInput)
 }
 .execute(using: client)
 ```

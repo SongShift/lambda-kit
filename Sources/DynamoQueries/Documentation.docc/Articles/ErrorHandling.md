@@ -102,7 +102,7 @@ the no-op entries.
 do {
     try await TransactWriteInput {
         order.put { $0.orderID.doesNotExist }
-        try Inventory.update(partitionKey: order.sku) { $0.stock.add(-1) }
+        Inventory.update(partitionKey: order.sku) { $0.stock.add(-1) }
     }
     .execute(using: client)
 } catch let cancellation as TransactionCanceled {
