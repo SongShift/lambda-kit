@@ -24,6 +24,10 @@ let package = Package(
             name: "DynamoQueriesTestSupport",
             targets: ["DynamoQueriesTestSupport"]
         ),
+        .library(
+            name: "DynamoQueriesSnapshotTesting",
+            targets: ["DynamoQueriesSnapshotTesting"]
+        ),
         .library(name: "APIGatewayV2Server", targets: ["APIGatewayV2Server"]),
     ],
     dependencies: [
@@ -40,6 +44,7 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-log.git", from: "1.6.0"),
         .package(url: "https://github.com/hummingbird-project/hummingbird.git", from: "2.0.0"),
         .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.9.0"),
+        .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.17.0"),
     ],
     targets: [
         .target(
@@ -65,6 +70,15 @@ let package = Package(
             name: "DynamoQueriesTestSupport",
             dependencies: ["DynamoQueries"]
         ),
+        .target(
+            name: "DynamoQueriesSnapshotTesting",
+            dependencies: [
+                "DynamoQueries",
+                "DynamoQueriesTestSupport",
+                .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
+                .product(name: "InlineSnapshotTesting", package: "swift-snapshot-testing"),
+            ]
+        ),
         .macro(
             name: "DynamoQueriesMacros",
             dependencies: [
@@ -79,7 +93,10 @@ let package = Package(
             dependencies: [
                 "DynamoQueries",
                 "DynamoQueriesSoto",
+                "DynamoQueriesTestSupport",
+                "DynamoQueriesSnapshotTesting",
                 .product(name: "SotoDynamoDB", package: "soto"),
+                .product(name: "InlineSnapshotTesting", package: "swift-snapshot-testing"),
             ]
         ),
         .executableTarget(
