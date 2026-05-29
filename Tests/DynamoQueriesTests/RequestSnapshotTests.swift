@@ -63,7 +63,7 @@ struct RequestSnapshotTests {
 
     @Test("A stub client transcript snapshots a request sequence")
     func transcriptSnapshot() async throws {
-        let client = StubDynamoClient()
+        let client = RecordingDynamoClient()
         _ = try await PhotoScan.get(partitionKey: "scan-1").execute(using: client)
         _ = try await HikingSession.scan { $0.sessionNumber > 2 }.execute(using: client)
 

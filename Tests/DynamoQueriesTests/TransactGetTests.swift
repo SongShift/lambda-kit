@@ -1,5 +1,6 @@
 import DynamoQueries
 import DynamoQueriesSoto
+import DynamoQueriesTestSupport
 import Foundation
 import SotoDynamoDB
 import Testing
