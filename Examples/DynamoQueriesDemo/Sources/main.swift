@@ -2,11 +2,13 @@
 //  DynamoQueriesDemo
 //
 //  A tour of the major DynamoQueries operations. Runs against an in-memory
-//  RecordingClient that prints what each DSL call site renders to.
+//  RecordingDynamoClient from DynamoQueriesTestSupport and prints the rendered
+//  request log after each operation.
 //
 
 import Foundation
 import DynamoQueries
+import DynamoQueriesTestSupport
 
 // MARK: Models
 
@@ -34,7 +36,7 @@ struct Hike: Codable, Sendable {
 
 // MARK: Walk-through
 
-let client = RecordingClient()
+let client = RecordingDynamoClient()
 
 print("\n— Query: pk + begins_with(sk) + filter -—————————————————————————")
 _ = try await Hike.query { hike in
@@ -48,6 +50,8 @@ _ = try await Hike.query { hike in
     }
 }
 .execute(using: client)
+print(await client.transcript)
+await client.clearLog()
 
 print("\n— Query: GSI, descending, limit -——————————————————————————————————")
 _ = try await Hiker.query { hiker in
@@ -57,15 +61,19 @@ _ = try await Hiker.query { hiker in
 .scanIndexForward(false)
 .limit(10)
 .execute(using: client)
+print(await client.transcript)
+await client.clearLog()
 
 print("\n— PutItem: insert-only-if-not-present -—————————————————————————————")
 let newHiker = Hiker(
     id: "hiker-123",
     email: "ada@example.com",
     displayName: "Ada Lovelace",
-    createdAt: Date().timeIntervalSince1970
+    createdAt: 0
 )
 try await newHiker.put { h in h.id.doesNotExist }.execute(using: client)
+print(await client.transcript)
+await client.clearLog()
 
 print("\n— UpdateItem: optimistic-concurrency counter bump -—————————————————")
 try await Hiker.update(
@@ -77,12 +85,16 @@ try await Hiker.update(
     where: { $0.id.exists }
 )
 .execute(using: client)
+print(await client.transcript)
+await client.clearLog()
 
 print("\n— Scan: filter only, last-resort access pattern -———————————————————")
 _ = try await Hike.scan { h in
     h.status == "in_progress"
 }
 .execute(using: client)
+print(await client.transcript)
+await client.clearLog()
 
 print("\n— BatchWrite: bulk puts + a delete -————————————————————————————————")
 try await Hiker.batchWrite()
@@ -91,10 +103,12 @@ try await Hiker.batchWrite()
         id: "hiker-124",
         email: "grace@example.com",
         displayName: "Grace Hopper",
-        createdAt: Date().timeIntervalSince1970
+        createdAt: 0
     ))
     .delete(partitionKey: "hiker-deprecated")
     .execute(using: client)
+print(await client.transcript)
+await client.clearLog()
 
 print("\n— TransactWrite: atomic multi-table update -—————————————————————————")
 try await TransactWriteInput {
@@ -110,6 +124,8 @@ try await TransactWriteInput {
     ) { $0.status == "in_progress" }
 }
 .execute(using: client)
+print(await client.transcript)
+await client.clearLog()
 
 print("\n— TransactGet: atomic, serializable multi-item read -—————————————————")
 
@@ -118,7 +134,8 @@ let (snapshotHiker, snapshotHike): (Hiker?, Hike?) = try await TransactGet {
     try Hike.get(partitionKey: "hiker-1", sortKey: "2026-001")
 }
 .execute(using: client)
-
+print(await client.transcript)
+await client.clearLog()
 print("hiker found: \(snapshotHiker != nil), hike found: \(snapshotHike != nil)")
 
 
@@ -301,7 +318,7 @@ let edith = Hiker(
     id: "hiker-200",
     email: "edith@example.com",
     displayName: "Edith Clarke",
-    createdAt: Date().timeIntervalSince1970
+    createdAt: 0
 )
 let firstHike = Hike(
     hikerID: "hiker-200",
@@ -315,21 +332,31 @@ let firstHike = Hike(
 
 print("\n— Service: register first hike (atomic write across both repos) -—————————")
 try await service.registerFirstHike(edith, firstHike: firstHike)
+print(await client.transcript)
+await client.clearLog()
 
 print("\n— Service: standalone read via mapped fetch (transform declared in repo) -")
 let domainHiker = try await service.hiker(id: "hiker-200")
+print(await client.transcript)
+await client.clearLog()
 print("hiker found: \(domainHiker != nil)")
 
 print("\n— Service: snapshot (atomic read; mapped legs deliver domain types) -——")
 let (snapHiker, snapHike) = try await service.snapshot(hikerID: "hiker-200", hikeID: "2026-001")
+print(await client.transcript)
+await client.clearLog()
 print("snapshot → hiker=\(snapHiker != nil) hike=\(snapHike != nil)")
 
 print("\n— Service: batch read — transform declared in repo, service just executes -")
 let roster = try await service.roster(ids: ["hiker-200", "hiker-201", "hiker-202"])
+print(await client.transcript)
+await client.clearLog()
 print("roster loaded: \(roster.count)")
 
 print("\n— Service: scan — standalone read, can't be a TransactGet leg -—————————")
 let active = try await service.activeHikes()
+print(await client.transcript)
+await client.clearLog()
 print("active hikes: \(active.count)")
 
 print("\n— Service: concurrent batch reads across both repos -———————————————————")
@@ -340,10 +367,14 @@ let bulk = try await service.bulkLoad(
         (hikerID: "hiker-200", hikeID: "2026-002"),
     ]
 )
+print(await client.transcript)
+await client.clearLog()
 print("bulk loaded: hikers=\(bulk.hikers.count) hikes=\(bulk.hikes.count)")
 
 print("\n— Service: complete hike (atomic read then atomic write) -—————————————")
 try await service.completeHike(hikerID: "hiker-200", hikeID: "2026-001")
+print(await client.transcript)
+await client.clearLog()
 
 print("\n— Repository: array of writables flattens automatically -——————————————")
 try await TransactWriteInput {
@@ -353,5 +384,7 @@ try await TransactWriteInput {
     ])
 }
 .execute(using: client)
+print(await client.transcript)
+await client.clearLog()
 
 print("\nDone.\n")

@@ -110,7 +110,7 @@ let package = Package(
         ),
         .executableTarget(
             name: "DynamoQueriesDemo",
-            dependencies: ["DynamoQueries"],
+            dependencies: ["DynamoQueries", "DynamoQueriesTestSupport"],
             path: "Examples/DynamoQueriesDemo/Sources"
         ),
         .executableTarget(
