@@ -10,7 +10,7 @@
 //  arguments left-to-right via the `.chain` combinator from
 //  `MiddlewareCombinators.swift`. We hand-roll one overload per arity (1...5)
 //  rather than using variadic generics to keep the produced type explicit at
-//  every call site — the user of the result builder sees the chained type in
+//  every call site. The user of the result builder sees the chained type in
 //  errors and IDE inspection.
 //
 

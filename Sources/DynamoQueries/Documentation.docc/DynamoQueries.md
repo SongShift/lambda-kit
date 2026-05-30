@@ -6,7 +6,7 @@ A typed, expressive query DSL for DynamoDB, with macros that lift your table sch
 
 `DynamoQueries` lets you describe DynamoDB operations against typed Swift
 models. The ``Table(_:)`` macro generates an ``DynamoModel`` conformance and a
-nested `Columns` proxy whose properties are typed ``Attribute`` references —
+nested `Columns` proxy whose properties are typed ``Attribute`` references,
 so query and update expressions are checked at compile time and rendered to
 DynamoDB-correct expression strings at runtime.
 

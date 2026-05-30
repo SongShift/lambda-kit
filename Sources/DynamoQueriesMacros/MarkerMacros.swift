@@ -1,7 +1,7 @@
 import SwiftSyntax
 import SwiftSyntaxMacros
 
-/// Marks a property as the partition key. Generates no code — read by @Table.
+/// Marks a property as the partition key. Generates no code. Read by @Table.
 public struct PartitionKeyMacro: PeerMacro {
     public static func expansion(
         of node: AttributeSyntax,
@@ -12,7 +12,7 @@ public struct PartitionKeyMacro: PeerMacro {
     }
 }
 
-/// Marks a property as the sort key. Generates no code — read by @Table.
+/// Marks a property as the sort key. Generates no code. Read by @Table.
 public struct SortKeyMacro: PeerMacro {
     public static func expansion(
         of node: AttributeSyntax,
@@ -23,7 +23,7 @@ public struct SortKeyMacro: PeerMacro {
     }
 }
 
-/// Overrides the DynamoDB attribute name for a property. Generates no code — read by @Table.
+/// Overrides the DynamoDB attribute name for a property. Generates no code. Read by @Table.
 public struct AttributeMacro: PeerMacro {
     public static func expansion(
         of node: AttributeSyntax,
@@ -34,7 +34,7 @@ public struct AttributeMacro: PeerMacro {
     }
 }
 
-/// Declares a secondary index on a `@Table` struct. Generates no peers — read
+/// Declares a secondary index on a `@Table` struct. Generates no peers. Read
 /// by `@Table`, which collects sibling `@Index` annotations and emits a typed
 /// `Indexes` enum with one `static let` per declared index.
 public struct IndexMacro: PeerMacro {

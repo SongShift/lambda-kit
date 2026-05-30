@@ -7,7 +7,7 @@ import Testing
 // helpers. The client throws a chosen error on the operations you point it at;
 // the helper asserts the operation surfaces it and hands back the typed error.
 
-// A service that reads then writes — used to show scoped failure.
+// A service that reads then writes, used to show scoped failure.
 private struct ReviewService {
     let client: any DynamoClient
 
@@ -34,7 +34,7 @@ private struct FailingClientTests {
 
     @Test("Scoped to writes: the read succeeds, only the write throttles")
     func scopedToWrites() async throws {
-        // get returns nil (benign); put throws — so reaching the failure proves
+        // get returns nil (benign); put throws, so reaching the failure proves
         // the read wasn't what failed.
         let client = FailingDynamoClient(reason: .throttled, on: .writes)
 

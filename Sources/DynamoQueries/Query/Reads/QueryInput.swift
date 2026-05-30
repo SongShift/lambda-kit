@@ -19,7 +19,7 @@ public struct QueryInput<Model: DynamoModel>: Sendable {
     /// responsible for safely placeholdering these (some attribute names are
     /// DynamoDB reserved words). `nil` means "fetch the whole item".
     public var projectionAttributes: [String]?
-    /// When `true`, the request asks DynamoDB for `Select: COUNT` — the
+    /// When `true`, the request asks DynamoDB for `Select: COUNT`: the
     /// server returns counts only, no items. Set internally by
     /// `.count(using:)`; users shouldn't need to flip this directly.
     public var selectCountOnly: Bool
@@ -80,7 +80,7 @@ extension QueryInput {
 
     /// Request a strongly consistent read. DynamoDB's default is eventually
     /// consistent; flipping this on doubles read-capacity cost. Not allowed on
-    /// global secondary indexes — DynamoDB will reject the request at runtime.
+    /// global secondary indexes. DynamoDB will reject the request at runtime.
     public func consistentRead(_ value: Bool = true) -> Self {
         var copy = self
         copy.consistentRead = value
@@ -97,7 +97,7 @@ extension QueryInput {
 
     /// Restrict the response to the listed attributes, saving bandwidth.
     /// Caveat: if the projection drops an attribute the model declares as
-    /// non-optional, decoding the response will fail — the adapter doesn't
+    /// non-optional, decoding the response will fail. The adapter doesn't
     /// know which fields you need. Project only the attributes your call
     /// site actually consumes, or model them as optional.
     public func project(_ attrs: any AttributeReference...) -> Self {
@@ -120,7 +120,7 @@ extension QueryInput {
     }
 
     /// Stream the query as an `AsyncSequence` of pages. Each `next()` fires
-    /// one DynamoDB Query request — backpressure is the consumer's: pages are
+    /// one DynamoDB Query request. Backpressure is the consumer's: pages are
     /// only fetched as the loop iterates. The sequence finishes after the
     /// page whose `nextToken` is `nil`.
     ///
@@ -142,7 +142,7 @@ extension QueryInput {
         return allItems
     }
 
-    /// Count matching items without retrieving them — `Select: COUNT` on the
+    /// Count matching items without retrieving them, `Select: COUNT` on the
     /// wire. Auto-paginates through every page and returns the sum. Cheaper
     /// than `executeAll(...).count` because no item bytes cross the wire,
     /// though DynamoDB still bills the same RCU for items the filter looked

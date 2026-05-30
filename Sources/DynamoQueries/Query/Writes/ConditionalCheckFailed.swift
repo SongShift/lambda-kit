@@ -7,11 +7,11 @@
 /// types.
 ///
 /// `priorItem` is the item that was actually present when the condition was
-/// evaluated — i.e., the item that caused the conflict. It's only populated
+/// evaluated, i.e., the item that caused the conflict. It's only populated
 /// when the request was built with `.returnConflictingItem()`; otherwise it
 /// is `nil`. (The flag costs an extra DynamoDB read on the failure path, so
 /// it's opt-in.) `priorItem` will also be `nil` if the prior item exists but
-/// fails to decode as `Model` — e.g., the schema has drifted since the row
+/// fails to decode as `Model`, e.g., the schema has drifted since the row
 /// was written.
 public struct ConditionalCheckFailed<Model: DynamoModel>: Error, Sendable {
     public let tableName: String
@@ -24,7 +24,7 @@ public struct ConditionalCheckFailed<Model: DynamoModel>: Error, Sendable {
 }
 
 extension ConditionalCheckFailed: DynamoError {
-    /// Conditional-check failures are business-rule outcomes — the same
+    /// Conditional-check failures are business-rule outcomes. The same
     /// request will evaluate the same way next time. Retrying isn't useful;
     /// the caller needs to refetch and rebuild the request.
     public var isRetryable: Bool { false }

@@ -29,8 +29,8 @@ public enum UpdateExpressionCompiler {
 
             case .listAppend(let attribute, let items):
                 // Wrap the existing-list operand in if_not_exists so the
-                // expression succeeds even when the attribute is missing —
-                // bare list_append(name, ...) fails with ValidationException
+                // expression succeeds even when the attribute is missing.
+                // Bare list_append(name, ...) fails with ValidationException
                 // if name doesn't exist.
                 let name = allocator.name(for: attribute)
                 let valuePlaceholder = allocator.value(for: items)

@@ -7,7 +7,7 @@
 /// placeholder spaces colliding.
 public enum ExpressionCompiler {
     /// Compile an array of expressions joined by `AND` and return the
-    /// resulting expression string. Returns `""` for an empty input — callers
+    /// resulting expression string. Returns `""` for an empty input. Callers
     /// that treat empty as "no expression" should check before assigning.
     public static func compile(
         _ expressions: [Expression],

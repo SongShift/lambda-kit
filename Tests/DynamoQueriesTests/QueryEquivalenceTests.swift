@@ -5,8 +5,8 @@ import Foundation
 import SotoDynamoDB
 import Testing
 
-// Each test below pairs a hand-written Soto request — anonymized from a real
-// FusionBackend call site — with the equivalent built through the
+// Each test below pairs a hand-written Soto request (anonymized from a real
+// FusionBackend call site) with the equivalent built through the
 // DynamoQueries DSL. The two are then compared after substituting placeholders
 // into the expression strings; see `Helpers/Equivalence.swift` for how that
 // works.
@@ -528,7 +528,7 @@ struct UpdateItemEquivalenceTests {
     // The original FusionBackend code expresses this counter as
     //   SET #count = if_not_exists(#count, :zero) + :one
     // which DynamoQueries doesn't model (it has no arithmetic SET). Its
-    // canonical equivalent is `add(1)`, which compiles to `ADD count :one` —
+    // canonical equivalent is `add(1)`, which compiles to `ADD count :one`.
     // DynamoDB initializes a missing numeric attribute to 0 before applying
     // the delta, so the two updates have identical observed behavior. The
     // reference here is written in the `ADD` form to match.
@@ -764,7 +764,7 @@ struct ProjectionTests {
         expectEquivalent(dslSoto, reference)
     }
 
-    // `status` is a reserved DynamoDB word — projecting it as a raw name
+    // `status` is a reserved DynamoDB word. Projecting it as a raw name
     // would be rejected by the service, so the adapter must emit it as a
     // placeholder. This test pins that behavior.
     @Test("GetItem: projection placeholders a reserved-word attribute (status)")

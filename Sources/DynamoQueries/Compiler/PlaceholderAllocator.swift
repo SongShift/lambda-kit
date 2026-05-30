@@ -1,8 +1,8 @@
 /// Allocates `#nN` (attribute name) and `:vN` (attribute value) placeholders
 /// for a single DynamoDB request and accumulates the maps that resolve them.
 ///
-/// One allocator handles every expression on a request — key condition, filter,
-/// condition, and update — so their placeholder spaces never collide on a
+/// One allocator handles every expression on a request (key condition, filter,
+/// condition, and update) so their placeholder spaces never collide on a
 /// single request that mixes them (the canonical example: `UpdateItem` with
 /// both an update expression and a condition expression). Callers create one
 /// allocator per input-builder call, hand it `inout` to each compiler in turn,

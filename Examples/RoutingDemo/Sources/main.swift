@@ -45,18 +45,18 @@ actor HikeStore {
 let store = HikeStore()
 let routerBuilder = HTTPRouterBuilder()
 
-// Public health check — no middleware.
+// Public health check: no middleware.
 routerBuilder.get("/health") { _, _ in
     .json(["status": "ok"], statusCode: .ok)
 }
 
-// Authenticated routes — every request runs through logging then auth.
+// Authenticated routes: every request runs through logging then auth.
 let authed = routerBuilder.withMiddleware {
     LoggingMiddleware()
     AuthMiddleware()
 }
 
-// GET /hikes/:id — read a hike by id. Auth happens first; handlers receive
+// GET /hikes/:id. Read a hike by id. Auth happens first; handlers receive
 // a `MiddlewareContext` exposing both the request (`.wrapped`) and the auth
 // value (`.value`).
 authed.get("/hikes/:id") { context, _ in
@@ -67,7 +67,7 @@ authed.get("/hikes/:id") { context, _ in
     return .json(hike, statusCode: .ok)
 }
 
-// POST /hikes — record a new hike. The body overload JSON-decodes the
+// POST /hikes. Record a new hike. The body overload JSON-decodes the
 // request body before invoking the handler.
 struct NewHike: Decodable, Sendable {
     let id: String

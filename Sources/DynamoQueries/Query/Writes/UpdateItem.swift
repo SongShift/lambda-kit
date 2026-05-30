@@ -3,7 +3,7 @@
 /// the update expression; everything else on the item is left alone.
 ///
 /// `conditionExpression`, when non-nil, is checked atomically with the
-/// update — DynamoDB applies the update iff the condition holds. The
+/// update. DynamoDB applies the update iff the condition holds. The
 /// canonical use is optimistic concurrency (`SET version = version + 1
 /// WHERE version = :expected`).
 ///
@@ -64,7 +64,7 @@ extension UpdateInput {
 
     /// Ask DynamoDB to return only the attributes touched by the update,
     /// in their post-update state. The decoded `Model` may be missing
-    /// fields that weren't touched — model only-this-update fields as
+    /// fields that weren't touched. Model only-this-update fields as
     /// optional, or the decode will fail.
     public func returnUpdatedNewValues() -> UpdateReturning<Model> {
         UpdateReturning(input: self, returnValues: .updatedNew)
@@ -87,7 +87,7 @@ public enum UpdateReturnValues: Sendable {
 }
 
 /// Wrapper produced by `UpdateInput.returnNewValues()` and friends.
-/// `.execute(using:)` returns `Model?` — `nil` means DynamoDB returned no
+/// `.execute(using:)` returns `Model?`. `nil` means DynamoDB returned no
 /// `Attributes` field for the response (which happens for some return-value
 /// modes when there's nothing to return).
 public struct UpdateReturning<Model: DynamoModel>: Sendable {

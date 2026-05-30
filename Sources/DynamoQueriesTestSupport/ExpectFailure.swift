@@ -23,7 +23,7 @@ import DynamoQueries
 ///
 /// If `operation` returns normally, the helper throws
 /// ``TestExpectationFailure/operationDidNotThrow``. If it throws any other
-/// error type, that error propagates unchanged — the test will fail with
+/// error type, that error propagates unchanged. The test will fail with
 /// the original error's diagnostic, so you can tell "wrong error" apart from
 /// "no error".
 public func expectConditionalCheckFailure<Model: DynamoModel>(
@@ -82,7 +82,7 @@ public func expectTransactionCancellation(
 ///
 /// Same semantics as the other `expect*` helpers: if `operation` returns
 /// without throwing, throws ``TestExpectationFailure/operationDidNotThrow``; if
-/// it throws a different error — or a `DynamoFailure` with a *different* reason —
+/// it throws a different error, or a `DynamoFailure` with a *different* reason,
 /// that error propagates unchanged, so a wrong reason is distinguishable from a
 /// missing throw.
 public func expectDynamoFailure(
@@ -99,7 +99,7 @@ public func expectDynamoFailure(
 
 /// Run `operation`, asserting it throws an error of type `E`. Returns the typed
 /// error for further inspection. The generic catch-all behind the typed
-/// helpers — use it for your own error types or when the specific lambda-kit
+/// helpers. Use it for your own error types or when the specific lambda-kit
 /// helper doesn't apply.
 ///
 ///     let error = try await expectError(MyServiceError.self) {
@@ -123,7 +123,7 @@ public func expectError<E: Error>(
 
 /// Error type used by the `expect*` helpers when an operation was expected
 /// to throw a specific lambda-kit error but instead returned normally. A
-/// mismatched error type isn't surfaced as a `TestExpectationFailure` — the
+/// mismatched error type isn't surfaced as a `TestExpectationFailure`. The
 /// original error propagates so the failure diagnostic carries its full
 /// context.
 public enum TestExpectationFailure: Error, CustomStringConvertible, Sendable {

@@ -31,18 +31,18 @@ struct ClaimHandleBody: Decodable, Sendable {
 // MARK: - Route registration
 
 func registerRoutes(on builder: HTTPRouterBuilder, using db: any DynamoClient) {
-    // Public route — health check, no auth.
+    // Public route: health check, no auth.
     builder.get("/health") { _, _ in
         .json(["status": "ok"], statusCode: .ok)
     }
 
-    // Authenticated routes — logging then auth.
+    // Authenticated routes: logging then auth.
     let authed = builder.withMiddleware {
         LoggingMiddleware()
         AuthMiddleware()
     }
 
-    // GET /hikes/:id — direct GetItem on the base table.
+    // GET /hikes/:id. Direct GetItem on the base table.
     authed.get("/hikes/:id") { context, _ in
         let id = try context.wrapped.pathParameters.require("id")
         let hike = try await Hike
@@ -54,7 +54,7 @@ func registerRoutes(on builder: HTTPRouterBuilder, using db: any DynamoClient) {
         return .json(hike, statusCode: .ok)
     }
 
-    // GET /hikers/:id/hikes?cursor=… — query the GSI, paginated.
+    // GET /hikers/:id/hikes?cursor=… Query the GSI, paginated.
     authed.get("/hikers/:id/hikes") { context, _ in
         let hikerID = try context.wrapped.pathParameters.require("id")
         let cursor = context.wrapped.queryParameters.get("cursor")
@@ -79,7 +79,7 @@ func registerRoutes(on builder: HTTPRouterBuilder, using db: any DynamoClient) {
         )
     }
 
-    // POST /hikes — JSON body decode + put + counter bump. The hiker id
+    // POST /hikes. JSON body decode + put + counter bump. The hiker id
     // comes from the auth middleware's value, not the request URL.
     authed.post("/hikes", body: CreateHikeBody.self) { context, body, _ in
         let hikerID = context.value.value
@@ -113,7 +113,7 @@ func registerRoutes(on builder: HTTPRouterBuilder, using db: any DynamoClient) {
         return .json(hike, statusCode: .created)
     }
 
-    // POST /handles — claim a handle (insert-if-not-exists).
+    // POST /handles. Claim a handle (insert-if-not-exists).
     authed.post("/handles", body: ClaimHandleBody.self) { context, body, _ in
         let handle = HikerHandle(
             handleLower: body.handle.lowercased(),

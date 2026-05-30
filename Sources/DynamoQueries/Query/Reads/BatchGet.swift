@@ -1,5 +1,5 @@
 /// A multi-key read against a single table. Up to 100 keys per DynamoDB
-/// request, 16MB total per response — adapters auto-retry the
+/// request, 16MB total per response. Adapters auto-retry the
 /// `UnprocessedKeys` portion of every response until the remainder is empty.
 ///
 /// `Model` is the row shape on the table; the response decodes back into
@@ -57,7 +57,7 @@ extension BatchGetInput {
 
 extension DynamoModel {
     /// Build a `BatchGetInput` for a partition-key-only table. Throws
-    /// `PrimaryKeyError.sortKeyRequired` if the table has a sort key — use
+    /// `PrimaryKeyError.sortKeyRequired` if the table has a sort key. Use
     /// the composite-key overload in that case.
     public static func batchGet(
         partitionKeys: [some DynamoEncodable]

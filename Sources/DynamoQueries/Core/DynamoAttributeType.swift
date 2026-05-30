@@ -3,8 +3,8 @@
 /// codes DynamoDB expects.
 ///
 /// Most schemas have known types, so `attribute_type` is rarely needed. It
-/// comes in handy for polymorphic attributes — e.g. a field that holds
-/// either a string or a number depending on context — when you want a
+/// comes in handy for polymorphic attributes (e.g. a field that holds
+/// either a string or a number depending on context) when you want a
 /// condition expression to branch on which case is currently stored.
 public enum DynamoAttributeType: String, Sendable, Equatable {
     case string = "S"

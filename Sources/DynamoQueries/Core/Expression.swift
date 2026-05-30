@@ -33,7 +33,7 @@ public enum SizeComparisonOp: String, Sendable, Equatable {
 
 /// Compose two expressions with `AND`. Equivalent to writing them on
 /// successive lines inside a `Filter` / `Condition` block, but useful when
-/// building a single compound expression — typically inside an `||` group.
+/// building a single compound expression, typically inside an `||` group.
 public func && (lhs: Expression, rhs: Expression) -> Expression {
     .and(lhs, rhs)
 }

@@ -2,8 +2,8 @@
 
 **LambdaKit is a toolkit for writing AWS Lambda services in Swift.** It pairs
 a typed request router built around the API Gateway HTTP and WebSocket event
-shapes with a typed DynamoDB query DSL, so the entire request → handler →
-DynamoDB lifecycle can be expressed without leaving the type system.
+shapes with a typed DynamoDB query DSL, so request handling stays in the type
+system from the incoming event through to the DynamoDB call.
 
 The two libraries ship independently — pull in only what your function needs:
 
@@ -106,8 +106,8 @@ escape hatch.
 
 ### <a name="quick-start-routing"></a>Quick start
 
-The Lambda example at the top of this README shows the full cold-start →
-runtime → dispatch shape. The pieces it composes:
+The Lambda example at the top of this README shows the full
+cold-start, runtime, and dispatch shape. The pieces it composes:
 
   * **`HTTPRouterBuilder`** — registers handlers under method+path keys.
     Sugar methods (`get`, `post(_:body:)`, `patch`, etc.) cover the common
@@ -344,7 +344,8 @@ try await User.update(
 ```
 
 Atomic counters (`add`), list `append`/`prepend`, set element add/remove,
-and `remove` are all available on `Attribute`. Want the row back?
+and `remove` are all available on `Attribute`. To get the updated row back,
+add a `return*` modifier:
 
 ```swift
 let updated = try await User.update(
@@ -507,7 +508,7 @@ Whole-item reads and writes go through Soto's `DynamoDBEncoder` /
 intermediate, no `[String: Any]` boxing. Two project-specific conventions
 are pinned at the adapter layer; the rest is stock Soto Codable.
 
-  * **`Date` ↔ `.n(timeIntervalSince1970)`.** `dateEncodingStrategy` and
+  * **`Date` maps to `.n(timeIntervalSince1970)`.** `dateEncodingStrategy` and
     `dateDecodingStrategy` are pinned to `.secondsSince1970` so the
     Codable path agrees with the `DynamoEncodable` extension on `Date`
     (see `DynamoQueries/Core/DynamoValue.swift`). Both write Unix-epoch
@@ -515,7 +516,7 @@ are pinned at the adapter layer; the rest is stock Soto Codable.
     across timezones. If you need a different format, encode/decode the
     field as `Double` (or `String`) and convert at the boundary.
 
-  * **Binary fields → `AWSBase64Data`, not `Data`.** Soto's coder only
+  * **Binary fields use `AWSBase64Data`, not `Data`.** Soto's coder only
     special-cases `AWSBase64Data` for the native `.b` (binary) attribute
     type. Plain `Data` falls through to `Data.encode(to:)`, which writes
     each byte as an integer in a list (`.l([.n("…"), …])`) — round-trip
@@ -529,7 +530,7 @@ are pinned at the adapter layer; the rest is stock Soto Codable.
     struct TrailCard: Codable {
         @PartitionKey var cardTokenHash: String
         var ownerId: String
-        var signature: AWSBase64Data?      // → .b on the wire
+        var signature: AWSBase64Data?      // becomes .b on the wire
     }
     ```
 
@@ -576,7 +577,7 @@ swift package generate-documentation --target Routing
 swift package generate-documentation --target DynamoQueries
 ```
 
-Or open the package in Xcode and use **Product → Build Documentation**.
+Or open the package in Xcode and use **Product > Build Documentation**.
 
 ## Installation
 

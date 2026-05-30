@@ -2,7 +2,7 @@
 ///
 /// Indexes carry their own partition/sort key shape that may differ from the
 /// base table's. Once you have an `Index<Self>`, queries against it look like
-/// queries against the base table — the same builder DSL applies, just with
+/// queries against the base table. The same builder DSL applies, just with
 /// the index's keys.
 ///
 /// Most call sites should use the macro-generated `Model.Indexes.X` instances

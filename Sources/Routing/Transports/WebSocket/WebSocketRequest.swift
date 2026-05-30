@@ -15,7 +15,7 @@ import Foundation
 /// conveniences as explicit stored properties (`body`, `pathParameters`,
 /// `queryParameters`, `headers`) and forwards every other member access through
 /// to the underlying event. Handlers therefore see the full surface of the AWS
-/// event — including `connectionId` and `routeKey` — without us having to
+/// event (including `connectionId` and `routeKey`) without us having to
 /// surface each field manually.
 ///
 /// ```swift
@@ -26,7 +26,7 @@ import Foundation
 /// }
 /// ```
 ///
-/// The `Routable` conformance — including `routingKey` — and the static
+/// The `Routable` conformance (including `routingKey`) and the static
 /// factories for building registration keys live in `WebSocketRouter.swift` so
 /// that all WebSocket-specific routing knowledge is colocated.
 @dynamicMemberLookup

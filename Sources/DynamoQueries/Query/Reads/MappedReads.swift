@@ -1,8 +1,8 @@
-/// Mapped read inputs — the result of calling `.map` on a *collection / paged*
+/// Mapped read inputs: the result of calling `.map` on a *collection / paged*
 /// read (`QueryInput`, `ScanInput`, `BatchGetInput`) or on `UpdateReturning`.
 ///
 /// Each type stores `(input, transform)` and **forwards its source's full
-/// terminal surface** with the transform applied — so a mapped query still has
+/// terminal surface** with the transform applied, so a mapped query still has
 /// `executeAll`, `pages`, and `count`, and a mapped scan still returns a real
 /// `QueryPage<Output>`. Nothing about the underlying operation is hidden; only
 /// the delivered element type changes. This mirrors `MappedGet` (see
@@ -50,7 +50,7 @@ public struct MappedPageSequence<
 // MARK: - MappedQuery
 
 /// A `QueryInput` with a transform applied to every item. Exposes the same
-/// terminals as `QueryInput` — `execute`, `pages`, `executeAll`, `count` —
+/// terminals as `QueryInput` (`execute`, `pages`, `executeAll`, `count`),
 /// each yielding `Output` instead of `Model`.
 public struct MappedQuery<Model: DynamoModel, Output: Sendable>: Sendable {
     let input: QueryInput<Model>
@@ -171,7 +171,7 @@ extension BatchGetInput {
 // MARK: - MappedUpdateReturning
 
 /// An `UpdateReturning` with a transform applied to the returned item. `execute`
-/// yields `Output?` — `nil` passes through when DynamoDB returns no attributes
+/// yields `Output?`. `nil` passes through when DynamoDB returns no attributes
 /// for the chosen `returnValues` mode.
 public struct MappedUpdateReturning<Model: DynamoModel, Output: Sendable>: Sendable {
     let input: UpdateReturning<Model>

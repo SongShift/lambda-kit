@@ -50,7 +50,7 @@ The adapter handles a few concerns the protocol leaves to the implementation:
 
 For tests, you'll typically want a recording client that captures every
 request the DSL produces and hands back canned responses. The test suite's
-`RecordingDynamoClient` is a working example — it stores each input keyed
+`RecordingDynamoClient` is a working example: it stores each input keyed
 by model type so individual tests can assert on specific operations.
 
 A skeleton looks like this:

@@ -4,7 +4,7 @@ import Foundation
 import SotoDynamoDB
 
 
-// Binary keys in the source are modeled as `String` here — DynamoQueries'
+// Binary keys in the source are modeled as `String` here: DynamoQueries'
 // `DynamoValue` only understands string / number / bool, which is enough to
 // exercise the compiler.
 

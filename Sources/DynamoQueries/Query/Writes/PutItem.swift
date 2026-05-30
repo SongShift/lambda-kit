@@ -2,14 +2,14 @@
 ///
 /// Holding the concrete `Model` value (rather than a pre-encoded
 /// `[String: DynamoValue]` map) lets transport adapters choose their own
-/// encoding strategy — the Soto adapter, for instance, bridges through
+/// encoding strategy. The Soto adapter, for instance, bridges through
 /// `JSONEncoder` so it can encode the full surface of `Codable` (lists, nested
 /// maps, dates) that `DynamoValue` doesn't yet model.
 ///
 /// `conditionExpression` is `nil` for unconditional puts and a fully compiled
 /// expression string (with placeholders resolved against
 /// `expressionAttributeNames` / `expressionAttributeValues`) for conditional
-/// puts. The most common condition is `attribute_not_exists(pk)` — i.e. an
+/// puts. The most common condition is `attribute_not_exists(pk)`, i.e. an
 /// "insert only if not already present" guard.
 public struct PutItemInput<Model: DynamoModel>: Sendable {
     public let tableName: String

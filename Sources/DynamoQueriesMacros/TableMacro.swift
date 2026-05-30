@@ -126,7 +126,7 @@ public struct TableMacro: ExtensionMacro {
                 return (swiftName: indexName, partitionKey: indexPartition, sortKey: indexSort)
             }
 
-        // Detect access level — match the struct's visibility
+        // Detect access level: match the struct's visibility
         let accessLevel: String
         if let modifiers = structDecl.modifiers.first(where: {
             $0.name.tokenKind == .keyword(.public)
@@ -152,7 +152,7 @@ public struct TableMacro: ExtensionMacro {
         }.joined(separator: "\n")
 
         // Key-shaped CRUD factories. The macro knows the table's key shape, so
-        // it emits *only* the matching overload — non-throwing, since there's
+        // it emits *only* the matching overload, non-throwing, since there's
         // nothing left to validate at runtime. Calling the wrong arity (a
         // sortKey on a partition-only table, or omitting it on a composite one)
         // is a compile error rather than a thrown `PrimaryKeyError`.

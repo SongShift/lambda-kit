@@ -3,7 +3,7 @@ import Foundation
 /// An opaque cursor pointing to the next page of a paginated query.
 ///
 /// Internally wraps DynamoDB's `LastEvaluatedKey` (the primary key of the last
-/// item returned). Callers should treat the string form as opaque — it is base64
+/// item returned). Callers should treat the string form as opaque. It is base64
 /// JSON, but that representation is not part of the public contract and may
 /// change.
 ///
@@ -61,7 +61,7 @@ extension PaginationToken: Codable {
 /// results are available.
 ///
 /// `nextToken` is `nil` when the query has been fully consumed. Callers should
-/// loop until they get a `nil` token, not until `items` is empty — DynamoDB can
+/// loop until they get a `nil` token, not until `items` is empty. DynamoDB can
 /// return an empty page with a non-nil token (e.g. when a filter eliminates
 /// every item in the scanned window).
 public struct QueryPage<Item: Sendable>: Sendable {
@@ -84,7 +84,7 @@ public struct QueryPage<Item: Sendable>: Sendable {
 
 /// A single page of a count-only Query/Scan response. `count` is the number
 /// of matching items in this page (after filter), `scannedCount` is what
-/// DynamoDB read before applying the filter — useful for spotting hot spots
+/// DynamoDB read before applying the filter, useful for spotting hot spots
 /// where a filter is doing too much work.
 public struct CountPage: Sendable {
     public let count: Int

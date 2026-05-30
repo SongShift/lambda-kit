@@ -12,7 +12,7 @@ import Logging
 import Routing
 
 /// Logs every request that reaches the chain and the status of the response
-/// produced. Doesn't transform the input — passes the original `HTTPRequest`
+/// produced. Doesn't transform the input, passes the original `HTTPRequest`
 /// through unchanged.
 struct LoggingMiddleware: MiddlewareProtocol {
     func handle(
@@ -30,7 +30,7 @@ struct LoggingMiddleware: MiddlewareProtocol {
 }
 
 /// Stand-in for a real auth check. Always succeeds and produces a fixed
-/// `HikerID` — a production middleware would verify a JWT against an
+/// `HikerID`. A production middleware would verify a JWT against an
 /// identity provider and short-circuit with `401` on failure.
 struct AuthMiddleware: Middleware {
     typealias Input = HTTPRequest

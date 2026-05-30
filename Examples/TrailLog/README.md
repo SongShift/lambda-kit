@@ -31,8 +31,8 @@ TrailLog/
 
   * Building an `HTTPRouter` once at cold-start and dispatching every Lambda
     invocation through it.
-  * Composing a middleware chain (`LoggingMiddleware` → `AuthMiddleware`) via
-    the `MiddlewareBuilder` result builder.
+  * Composing a middleware chain (`LoggingMiddleware` then `AuthMiddleware`)
+    via the `MiddlewareBuilder` result builder.
   * Registering routes both directly and through a middleware group, with and
     without JSON body decoding.
   * Modeling a DynamoDB table with `@Table`, `@PartitionKey`, `@SortKey`, and

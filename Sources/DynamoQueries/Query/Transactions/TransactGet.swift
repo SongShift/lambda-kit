@@ -1,7 +1,7 @@
 /// A primary-key read leg that can be composed into a `TransactGet { ... }`
 /// block *or* executed on its own. Both a plain `GetItemInput` and a mapped
 /// `MappedGet` conform, so there is no difference between a "raw" and a
-/// "mapped" leg at a call site — only the delivered `Output` type differs.
+/// "mapped" leg at a call site: only the delivered `Output` type differs.
 ///
 /// `Storage` is the on-table model the adapter decodes; `Output` is what the
 /// caller actually receives. For an un-mapped get the two coincide.
@@ -13,7 +13,7 @@ public protocol Read<Output>: Sendable {
     var getItemInput: GetItemInput<Storage> { get }
 
     /// Convert a decoded storage item into the delivered output. Called only
-    /// for a present item — a missing key never reaches here.
+    /// for a present item. A missing key never reaches here.
     func transform(_ storage: Storage) -> Output
 }
 
@@ -21,7 +21,7 @@ extension Read {
     /// Run this single read on its own (outside a transaction). Returns `nil`
     /// for a missing key; the transform is applied only to a present item.
     /// Available on any `Read`, so an opaque `some Read<Output>` return
-    /// is fully usable — it composes in `TransactGet` *and* executes here.
+    /// is fully usable. It composes in `TransactGet` *and* executes here.
     public func execute(using client: any DynamoClient) async throws -> Output? {
         try await getItemInput.execute(using: client).map(transform)
     }
@@ -42,8 +42,8 @@ extension Read {
 /// boundary: table, key, optional projection, and the storage model's metatype
 /// (so the adapter can decode the row back into it).
 ///
-/// The transport is intentionally erased — a plain `[TransactGetItem]` in and a
-/// `[(any DynamoModel)?]` out — rather than a parameter-pack-generic method.
+/// The transport is intentionally erased (a plain `[TransactGetItem]` in and a
+/// `[(any DynamoModel)?]` out) rather than a parameter-pack-generic method.
 /// That shape sidesteps a Swift codegen bug: passing an associated-type-
 /// projected pack (`repeat (each leg).Storage`) into an `async` existential call
 /// miscompiles into a double-free. `TransactGetInput.execute` rebuilds the typed
@@ -105,7 +105,7 @@ public struct MappedGet<Storage: DynamoModel, Output: Sendable>: Read {
 
 extension GetItemInput {
     /// Transform the item (if found) before delivery. Returns a `MappedGet`
-    /// leg — usable both standalone and inside a `TransactGet { ... }` block.
+    /// leg, usable both standalone and inside a `TransactGet { ... }` block.
     /// The closure is not called for a missing key.
     public func map<Output: Sendable>(
         _ transform: @Sendable @escaping (Model) -> Output
@@ -116,14 +116,14 @@ extension GetItemInput {
 
 // MARK: - TransactGetInput
 
-/// A read transaction — an atomic, serializable snapshot of up to 100 items,
+/// A read transaction: an atomic, serializable snapshot of up to 100 items,
 /// each addressed by primary key, that may span tables and models.
 ///
 /// Where `batchGet` reads a single table, may be eventually consistent, and
 /// returns the items it found in no guaranteed order, a `TransactGetInput`
 /// reads every leg inside one DynamoDB `TransactGetItems` call: the reads see a
 /// single consistent point in time, and the result is a *typed tuple* in the
-/// same order the legs were declared — `nil` for any leg whose item was not
+/// same order the legs were declared, `nil` for any leg whose item was not
 /// found.
 ///
 ///     let (hiker, hike) = try await TransactGet {
@@ -160,14 +160,14 @@ public struct TransactGetInput<each Leg: Read>: Sendable {
 
 extension TransactGetInput {
     /// Run the read transaction. Returns one optional per leg, in declaration
-    /// order — each leg's `Output` type, with `nil` for a key that matched no
+    /// order, each leg's `Output` type, with `nil` for a key that matched no
     /// item. The transport decodes to each leg's `Storage`; the leg's transform
     /// is applied afterward.
     public func execute(
         using client: any DynamoClient
     ) async throws -> (repeat (each Leg).Output?) {
         // Build the erased request by appending over the leg pack (an array
-        // build — never a pack passed to the async call), then index-walk the
+        // build, never a pack passed to the async call), then index-walk the
         // erased results, recovering each leg's type via `as? Storage`. See the
         // note on `TransactGetItem` for why the transport is erased.
         var items: [TransactGetItem] = []
@@ -192,7 +192,7 @@ extension TransactGetInput {
 /// Result builder backing `TransactGetInput`. Only `buildBlock` is provided:
 /// the result is a fixed-arity, statically-typed tuple, so control flow that
 /// would change the number or types of legs (`if`, `for`, `switch`) can't be
-/// expressed — and shouldn't be, since the caller binds the result positionally.
+/// expressed, and shouldn't be, since the caller binds the result positionally.
 @resultBuilder
 public enum TransactGetBuilder {
     public static func buildExpression<Leg: Read>(_ leg: Leg) -> Leg { leg }

@@ -132,7 +132,7 @@ public final class Router<R: Routable>: Sendable {
     /// Dispatch a request to its registered handler.
     ///
     /// Returns a 404 `Response` if no handler matches. Returns a 500 `Response` if
-    /// the handler throws an unhandled error — use an error-handling middleware to
+    /// the handler throws an unhandled error. Use an error-handling middleware to
     /// translate domain errors into responses before they reach this fallback.
     public func handle(_ request: R, logger: Logger) async -> Response {
         var routingParams = RoutingKit.Parameters()

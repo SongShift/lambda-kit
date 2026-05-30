@@ -3,7 +3,7 @@
 /// repository can return `some PagedRead<DomainHike>` and keep the on-table
 /// storage model out of its signature entirely.
 ///
-/// There are three, one per terminal shape — they can't be collapsed into one,
+/// There are three, one per terminal shape. They can't be collapsed into one,
 /// because the shapes genuinely differ:
 ///
 /// | protocol      | conformers                          | terminal(s) |
@@ -14,7 +14,7 @@
 ///
 /// (`Read` lives in `TransactGet.swift`, alongside the transaction it feeds.)
 ///
-/// The raw inputs conform too, with `Output == Model` — so `some PagedRead<Hike>`
+/// The raw inputs conform too, with `Output == Model`, so `some PagedRead<Hike>`
 /// names an un-mapped query just as well as a mapped one.
 
 // MARK: - BatchRead

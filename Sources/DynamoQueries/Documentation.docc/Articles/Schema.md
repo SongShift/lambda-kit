@@ -36,7 +36,7 @@ struct User: Codable {
 The macro generates four things:
 
   * A ``DynamoModel`` conformance.
-  * A static `_table` ``TableMetadata`` value carrying the runtime schema —
+  * A static `_table` ``TableMetadata`` value carrying the runtime schema:
     table name, partition key, optional sort key.
   * A nested `Columns` struct (one ``Attribute`` per declared property) plus
     a static `Attributes` enum and a generated `$name` accessor for each
@@ -46,10 +46,10 @@ The macro generates four things:
 
 ## Property attributes
 
-  * ``PartitionKey()`` — exactly one per table. Marks the property as the
+  * ``PartitionKey()``: exactly one per table. Marks the property as the
     table's hash key.
-  * ``SortKey()`` — optional. Marks the property as the table's range key.
-  * ``Attribute(_:)`` — overrides the on-the-wire attribute name. Useful when
+  * ``SortKey()``: optional. Marks the property as the table's range key.
+  * ``Attribute(_:)``: overrides the on-the-wire attribute name. Useful when
     you want to use a Swift-idiomatic property name (`displayName`) for an
     attribute stored under a different DynamoDB name (`display_name`).
 
@@ -112,7 +112,7 @@ extension User: DynamoModel {
 ```
 
 `columns` is what gets passed into the closure parameter of `query`, `scan`,
-`update`, and friends — so call sites read `column.email == "..."` rather
+`update`, and friends, so call sites read `column.email == "..."` rather
 than `User.$email == "..."`.
 
 ## Encoding
@@ -120,10 +120,10 @@ than `User.$email == "..."`.
 Models are encoded and decoded via `Codable`. The `DynamoQueriesSoto`
 adapter uses Soto's native `DynamoDBEncoder` / `DynamoDBDecoder` (with
 `secondsSince1970` date strategy), so values land in their native
-DynamoDB attribute types — strings, numbers, booleans, lists, and nested
-maps — rather than going through a JSON intermediate.
+DynamoDB attribute types (strings, numbers, booleans, lists, and nested
+maps) rather than going through a JSON intermediate.
 
 If you need a property name on the wire that differs from the Swift
-property name, prefer ``Attribute(_:)`` over `CodingKeys` — the
+property name, prefer ``Attribute(_:)`` over `CodingKeys`: the
 `@Attribute("name")` annotation is what the expression compiler uses, so
 filters and updates need it to be set correctly.

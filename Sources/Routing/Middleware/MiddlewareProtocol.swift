@@ -23,7 +23,7 @@ public enum MiddlewareAction<Value: Sendable>: Sendable {
 /// `MiddlewareProtocol` is intentionally low-level: a middleware receives an
 /// `Input`, may invoke `next` with an `Output`, and produces a `Response`. It
 /// makes no assumption about whether the middleware passes through, transforms,
-/// short-circuits, or branches — those concerns are layered on top via the
+/// short-circuits, or branches. Those concerns are layered on top via the
 /// `Middleware` convenience refinement and the combinators in
 /// `MiddlewareCombinators.swift`.
 public protocol MiddlewareProtocol<Input, Output>: Sendable {

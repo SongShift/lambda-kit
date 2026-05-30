@@ -14,7 +14,7 @@ Every operation against DynamoQueries follows the same shape:
   3. Call `.execute(using: client)` to fire the request.
 
 The input types are `Sendable` value types, so they can be stored,
-transformed, and reused — `.execute(using:)` is the only step that does I/O.
+transformed, and reused. `.execute(using:)` is the only step that does I/O.
 
 ## Query
 
@@ -38,13 +38,13 @@ let page = try await Order.query { o in
 
 Common modifiers:
 
-  * ``QueryInput/usingIndex(_:)`` — run the query against a secondary index.
-  * ``QueryInput/limit(_:)`` — cap per-request page size.
-  * ``QueryInput/consistentRead(_:)`` — strongly consistent reads (doubles
+  * ``QueryInput/usingIndex(_:)``: run the query against a secondary index.
+  * ``QueryInput/limit(_:)``: cap per-request page size.
+  * ``QueryInput/consistentRead(_:)``: strongly consistent reads (doubles
     read-capacity cost; rejected on global secondary indexes).
-  * ``QueryInput/scanIndexForward(_:)`` — `false` walks the sort key in
+  * ``QueryInput/scanIndexForward(_:)``: `false` walks the sort key in
     descending order.
-  * `QueryInput.project(_:)` — restrict the response to a subset of
+  * `QueryInput.project(_:)`: restrict the response to a subset of
     attributes.
 
 ## Scan
@@ -62,10 +62,11 @@ let pending = try await Order.scan { o in
 
 ## Get / Put / Update / Delete
 
-Single-item operations are addressed by primary key. The `partition-key-only`
-overload throws ``PrimaryKeyError/sortKeyRequired(table:)`` if your table has
-a sort key; the composite-key overload throws
-``PrimaryKeyError/unexpectedSortKey(table:)`` if it doesn't.
+Single-item operations are addressed by primary key. The `@Table` macro
+generates exactly the overload that matches your table's key shape:
+`get(partitionKey:)` for a partition-only table, `get(partitionKey:sortKey:)`
+for a composite-key table. Passing the wrong key arity is a compile error, not
+a runtime failure, so these factories don't throw and don't need a `try`.
 
 ```swift
 // GET
@@ -117,11 +118,11 @@ do {
 ``UpdateReturning`` whose `execute(using:)` returns `Model?` instead of
 `Void`:
 
-  * ``UpdateInput/returnNewValues()`` — the entire item, post-update.
-  * ``UpdateInput/returnOldValues()`` — the entire item, pre-update.
-  * ``UpdateInput/returnUpdatedNewValues()`` — only the touched attributes,
+  * ``UpdateInput/returnNewValues()``: the entire item, post-update.
+  * ``UpdateInput/returnOldValues()``: the entire item, pre-update.
+  * ``UpdateInput/returnUpdatedNewValues()``: only the touched attributes,
     post-update.
-  * ``UpdateInput/returnUpdatedOldValues()`` — only the touched attributes,
+  * ``UpdateInput/returnUpdatedOldValues()``: only the touched attributes,
     pre-update.
 
 The two "updated" variants may produce items missing fields the model
@@ -145,7 +146,7 @@ try await User.batchWrite()
     .execute(using: client)
 ```
 
-Batch writes don't honor condition expressions — reach for
+Batch writes don't honor condition expressions. Reach for
 ``TransactWriteInput`` if you need atomicity.
 
 ## Transactional writes
@@ -169,7 +170,7 @@ A failed transaction throws ``TransactionCanceled``. The
 failed will have a code like `"ConditionalCheckFailed"` or
 `"TransactionConflict"`.
 
-`ConditionalCheckFailed` is **not** thrown for transactional failures —
+`ConditionalCheckFailed` is **not** thrown for transactional failures.
 DynamoDB returns a single transaction-canceled exception even when only one
 leg's condition failed.
 
@@ -177,8 +178,8 @@ leg's condition failed.
 
 Every write builder (``PutItemInput``, ``UpdateInput``, ``DeleteItemInput``)
 and ``TransactWriteInput`` itself conforms to ``TransactWritable``. The
-result builder accepts any value of that protocol — including arrays of
-writables via the conditional `Array: TransactWritable` conformance — and
+result builder accepts any value of that protocol (including arrays of
+writables via the conditional `Array: TransactWritable` conformance) and
 flattens them into a single leg list. Three things this unlocks:
 
 1. **Write builders are values, not async calls.** A method can build the
@@ -209,7 +210,7 @@ struct HikerRepository {
         }
     }
 
-    // Homogeneous list — flattens via Array's conditional conformance.
+    // Homogeneous list, flattens via Array's conditional conformance.
     func cancel(_ hikes: [(hikerID: String, hikeID: String)]) -> any TransactWritable {
         hikes.map { ids in
             Hike.update(partitionKey: ids.hikerID, sortKey: ids.hikeID) {
@@ -231,8 +232,8 @@ try await TransactWriteInput {
 .execute(using: client)
 ```
 
-The builder doesn't care whether each line resolves to one leg or many —
-it asks the value for `toTransactWriteItems()` and concatenates the
+The builder doesn't care whether each line resolves to one leg or many.
+It asks the value for `toTransactWriteItems()` and concatenates the
 results. The 100-leg per-transaction limit applies to the flattened total,
 so a multi-leg method counts against the same budget as a single-leg one.
 

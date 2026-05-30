@@ -14,7 +14,7 @@ import DynamoQueries
 ///     #expect(failure.isRetryable)
 ///
 /// Scope the failure when a service does several calls and you want only one to
-/// fail — e.g. the read succeeds but the write is throttled:
+/// fail, e.g. the read succeeds but the write is throttled:
 ///
 ///     let client = FailingDynamoClient(DynamoFailure(reason: .throttled), on: .writes)
 ///
@@ -22,8 +22,8 @@ import DynamoQueries
 /// (`get`/`query`/`scan`/`batchGet`/`transactGet`), not just writes.
 ///
 /// The error must be `Sendable` (it crosses back to the caller across the
-/// actor boundary). The lambda-kit error types — `DynamoFailure`,
-/// `ConditionalCheckFailed<Model>`, `TransactionCanceled` — all qualify.
+/// actor boundary). The lambda-kit error types (`DynamoFailure`,
+/// `ConditionalCheckFailed<Model>`, `TransactionCanceled`) all qualify.
 public actor FailingDynamoClient: DynamoClient {
 
     /// The DynamoDB operations a `FailingDynamoClient` can be told to fail on.
@@ -105,7 +105,7 @@ public actor FailingDynamoClient: DynamoClient {
         if let error, failing.contains(operation) { throw error }
     }
 
-    /// If a conditional conflict is configured for `Model`, throw it — honoring
+    /// If a conditional conflict is configured for `Model`, throw it, honoring
     /// the request's `.returnConflictingItem()` opt-in.
     private func failConditionalConflict<Model: DynamoModel>(
         _ type: Model.Type,

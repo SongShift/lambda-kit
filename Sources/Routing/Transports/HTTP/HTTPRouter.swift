@@ -36,7 +36,7 @@ public extension HTTPRequest {
     /// This is the **single source of truth** for how HTTP requests map to
     /// trie keys. Both registration (via `HTTPRequest.get(_:)` and friends) and
     /// dispatch (via `HTTPRequest.routingKey`) call through here. If you change
-    /// this function, both sides update automatically — they cannot drift apart.
+    /// this function, both sides update automatically. They cannot drift apart.
     static func route(method: String, path: String) -> [String] {
         [method] + path.split(separator: "/").map(String.init)
     }
@@ -67,7 +67,7 @@ public extension HTTPRequest {
     }
 
     /// The routing key used to dispatch this request. Symmetric with the static
-    /// factories above — both go through `route(method:path:)`.
+    /// factories above, both go through `route(method:path:)`.
     ///
     /// Reads the HTTP method and proxy path from the underlying AWS event. The
     /// API Gateway HTTP integration places the matched URL path under the

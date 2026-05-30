@@ -3,7 +3,7 @@ import Foundation
 /// A value matching one of DynamoDB's attribute-value variants.
 ///
 /// Mirrors the wire-level surface (`S`, `N`, `BOOL`, `B`, `NULL`, `L`, `M`,
-/// `SS`, `NS`, `BS`). Numbers are carried as their string serialization —
+/// `SS`, `NS`, `BS`). Numbers are carried as their string serialization.
 /// DynamoDB sends them that way to preserve arbitrary-precision values that
 /// would round-trip lossily through `Double`.
 public enum DynamoValue: Sendable, Equatable {
@@ -16,7 +16,7 @@ public enum DynamoValue: Sendable, Equatable {
     case map([String: DynamoValue])
     case stringSet(Set<String>)
     /// DynamoDB number-set elements travel as their string serialization for
-    /// the same reason single numbers do — preserving precision. The
+    /// the same reason single numbers do, preserving precision. The
     /// `Set<Int>` / `Set<Double>` `DynamoEncodable` conformances do the
     /// conversion for you.
     case numberSet(Set<String>)
@@ -139,7 +139,7 @@ extension Data: DynamoEncodable {
     public func toDynamoValue() -> DynamoValue { .binary(self) }
 }
 
-/// `Date` encodes as epoch-seconds in a Number — keeps values sortable in
+/// `Date` encodes as epoch-seconds in a Number: keeps values sortable in
 /// DynamoDB indexes (an ISO8601 string is also sortable, but epoch-seconds
 /// is shorter on the wire and stays correct across timezones without further
 /// thought). `Date` is `Comparable`, so `Attribute<Date>` automatically
@@ -170,7 +170,7 @@ extension Dictionary: DynamoEncodable where Key == String, Value: DynamoEncodabl
 }
 
 // DynamoDB only models string, number, and binary sets. `DynamoSetElement`
-// is the marker that gates which `Set<T>` types can be DynamoEncodable —
+// is the marker that gates which `Set<T>` types can be DynamoEncodable:
 // `String`, `Int`, `Double`, and `Data`. `Set<Bool>` and other element types
 // deliberately don't get a conformance.
 public protocol DynamoSetElement: DynamoEncodable & Hashable {

@@ -1,18 +1,18 @@
 /// Thrown by `TransactWriteInput.execute(using:)` when DynamoDB cancels the
 /// whole transaction. Reports the per-leg cancellation reasons in the same
-/// order as the items the user submitted — so `cancellations[i]` describes
+/// order as the items the user submitted, so `cancellations[i]` describes
 /// what happened to the `i`-th item.
 ///
 /// DynamoDB always returns one cancellation entry per leg, even legs that
 /// were fine; the "leg succeeded" entries surface here with `reason == nil`,
 /// so a typical caller iterates `failedCancellations` rather than
-/// `cancellations`. The failing leg's `reason` is a `DynamoFailure` — the
-/// same vocabulary used everywhere else — and may carry the conflicting item
+/// `cancellations`. The failing leg's `reason` is a `DynamoFailure` (the
+/// same vocabulary used everywhere else) and may carry the conflicting item
 /// on `priorRawItem` if the original write asked for it via
 /// `.returnConflictingItem()`.
 ///
 /// `priorRawItem` is exposed as a raw `[String: DynamoValue]` map rather
-/// than a typed model — a transaction can span tables, so there's no single
+/// than a typed model. A transaction can span tables, so there's no single
 /// `Model` that fits every leg. Decode by hand if you need the typed item.
 public struct TransactionCanceled: Error, Sendable {
     public let cancellations: [Cancellation]
@@ -45,7 +45,7 @@ public struct TransactionCanceled: Error, Sendable {
         }
     }
 
-    /// Only the cancellations whose `failure` is non-nil — i.e., the legs
+    /// Only the cancellations whose `failure` is non-nil, i.e., the legs
     /// that actually failed. Skips the "None" entries DynamoDB emits for
     /// succeeded legs.
     public var failedCancellations: [Cancellation] {
@@ -56,7 +56,7 @@ public struct TransactionCanceled: Error, Sendable {
 extension TransactionCanceled: DynamoError {
     /// Retry the whole transaction only when every recognized failure mode is
     /// retryable. A single non-retryable leg (conditional check, validation,
-    /// auth, …) is definitive — the next attempt would fail the same way.
+    /// auth, …) is definitive. The next attempt would fail the same way.
     /// `.unknown` reasons are ignored when deciding retryability so a
     /// future-AWS code can't accidentally flip the decision either way.
     public var isRetryable: Bool {
@@ -75,7 +75,7 @@ extension TransactionCanceled: DynamoError {
 
 /// One leg of a `TransactWriteItems` transaction: a Put, Update, Delete, or
 /// ConditionCheck. The container is type-erased so a single transaction can
-/// span tables/models — the model's typed surface is preserved only for the
+/// span tables/models. The model's typed surface is preserved only for the
 /// `put` case (where the adapter needs the original item to encode it).
 public struct TransactWriteItem: Sendable {
     public let tableName: String
@@ -119,11 +119,11 @@ public struct TransactWriteItem: Sendable {
     }
 }
 
-/// A pending transactional write — up to 100 items DynamoDB will apply
+/// A pending transactional write: up to 100 items DynamoDB will apply
 /// atomically (all-or-nothing). Build with the `TransactWriteInput { ... }`
 /// result-builder init, or hand `init(items:)` a pre-built `[TransactWriteItem]`.
 ///
-/// `ConditionalCheckFailed` is **not** thrown for transactional failures —
+/// `ConditionalCheckFailed` is **not** thrown for transactional failures.
 /// DynamoDB returns a `TransactionCanceledException` whose cancellation
 /// reasons identify which leg failed. Adapters surface that as their native
 /// error type for now; a typed wrapper can land later.
@@ -141,7 +141,7 @@ extension TransactWriteInput {
     /// Build the items list with a closure-style DSL. The closure is
     /// `throws` because the typed builders (`Model.update(...)`,
     /// `Model.delete(...)`, `Model.conditionCheck(...)`) themselves throw on
-    /// primary-key arity mismatch — call sites mark each throwing line with
+    /// primary-key arity mismatch. Call sites mark each throwing line with
     /// `try`.
     ///
     ///     try await TransactWriteInput {
@@ -264,7 +264,7 @@ extension TransactWriteInput {
 // MARK: - ConditionCheck builder
 
 extension DynamoModel {
-    /// Build a `ConditionCheck` transact item — checks a row's condition
+    /// Build a `ConditionCheck` transact item: checks a row's condition
     /// without writing. Use inside a `TransactWriteInput { ... }` block to
     /// assert state on a related row that this transaction depends on.
     public static func conditionCheck(

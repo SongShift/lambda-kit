@@ -158,7 +158,7 @@ print("hiker found: \(snapshotHiker != nil), hike found: \(snapshotHike != nil)"
 // a single all-or-nothing read or write if each repository committed its own
 // transaction, a later failure would leave partial state behind.
 
-// Domain model — what the service layer actually works with.  Repositories
+// Domain model: what the service layer actually works with.  Repositories
 // convert between this and the DynamoDB storage model (Hiker / Hike).
 struct DomainHiker: Sendable {
     var id: String
@@ -303,7 +303,7 @@ struct TrailService {
 
     // Atomic read to load current state; atomic write to commit the transition.
     // The guard on the snapshot result is where business logic would live in a
-    // real implementation — e.g. checking hike.status before allowing completion.
+    // real implementation, e.g. checking hike.status before allowing completion.
     func completeHike(hikerID: String, hikeID: String) async throws {
         let (hiker, hike) = try await snapshot(hikerID: hikerID, hikeID: hikeID)
         print("  snapshot → hiker=\(hiker != nil) hike=\(hike != nil)")

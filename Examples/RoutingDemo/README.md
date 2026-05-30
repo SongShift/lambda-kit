@@ -22,7 +22,7 @@ runtime's docs); this README focuses on the routing wire-up.
     `AuthMiddleware`, looks up a hike in the in-memory `HikeStore`.
   * `POST /hikes` — same middleware chain, plus body decoding into a
     `NewHike` payload before invoking the handler.
-  * Anything else → `404` from the router's fallback.
+  * Anything else returns `404` from the router's fallback.
 
 The two middlewares live in [`Middleware.swift`](Sources/Middleware.swift):
 

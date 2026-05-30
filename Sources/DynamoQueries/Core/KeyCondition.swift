@@ -1,7 +1,7 @@
 /// A single key-condition expression, distinct from the broader
 /// ``Expression`` used by `Filter` / `where:` blocks. DynamoDB's
 /// `KeyConditionExpression` only accepts a small subset of operators on
-/// the table's partition and sort key — exposing those operators with a
+/// the table's partition and sort key. Exposing those operators with a
 /// dedicated return type keeps unsafe operators (`contains`, `!=`,
 /// existence checks, `&&` / `||` / `!`) from compiling inside `Key { }`.
 public struct KeyCondition: Sendable, Equatable {

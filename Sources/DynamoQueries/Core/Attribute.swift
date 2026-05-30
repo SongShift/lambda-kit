@@ -8,7 +8,7 @@ public protocol AttributeReference: Sendable {
 }
 
 /// A typed reference to a DynamoDB attribute name.
-/// `Value` is a phantom type — it constrains operators, not storage.
+/// `Value` is a phantom type: it constrains operators, not storage.
 public struct Attribute<Value>: Sendable, AttributeReference {
     public let name: String
 
@@ -23,7 +23,7 @@ public struct Attribute<Value>: Sendable, AttributeReference {
 /// function accepts: strings, binary, lists, maps, and sets.
 ///
 /// `Optional` propagates the conformance via the conditional conformance
-/// below — `Attribute<String?>.size` works because `String?` is `DynamoSizable`
+/// below. `Attribute<String?>.size` works because `String?` is `DynamoSizable`
 /// when `String` is.
 public protocol DynamoSizable {}
 
@@ -167,19 +167,19 @@ extension Attribute {
 // MARK: - Existence
 
 extension Attribute {
-    /// `attribute_exists(name)` — true when the item has this attribute.
+    /// `attribute_exists(name)`: true when the item has this attribute.
     public var exists: Expression {
         .attributeExists(attributeName: name)
     }
 
-    /// `attribute_not_exists(name)` — true when the item lacks this attribute.
+    /// `attribute_not_exists(name)`: true when the item lacks this attribute.
     /// The canonical "insert only if not present" guard is
     /// `Model.$partitionKey.doesNotExist`.
     public var doesNotExist: Expression {
         .attributeNotExists(attributeName: name)
     }
 
-    /// `attribute_type(name, T)` — true when this attribute is currently of
+    /// `attribute_type(name, T)`: true when this attribute is currently of
     /// the given DynamoDB wire type. Useful for polymorphic attributes; rare
     /// in well-typed schemas.
     public func hasType(_ type: DynamoAttributeType) -> Expression {
@@ -194,7 +194,7 @@ extension Attribute where Value == String {
         .beginsWith(attributeName: name, value: prefix.toDynamoValue())
     }
 
-    /// `contains(name, :substring)` — true when the string value contains
+    /// `contains(name, :substring)`: true when the string value contains
     /// the given substring. DynamoDB's `contains` also operates on sets and
     /// lists; those overloads will land alongside set/list support in
     /// `DynamoValue`.
@@ -216,7 +216,7 @@ extension Attribute where Value == String? {
 // MARK: - Set / List membership
 
 extension Attribute {
-    /// `contains(set, :element)` — true when the set value contains the given
+    /// `contains(set, :element)`: true when the set value contains the given
     /// element. The element type is enforced to match the set's element type
     /// via `DynamoSetElement`.
     public func contains<Element: DynamoSetElement>(_ element: Element) -> Expression
@@ -231,7 +231,7 @@ extension Attribute {
         .contains(attributeName: name, operand: element.toDynamoValue())
     }
 
-    /// `contains(list, :element)` — true when the list value contains the
+    /// `contains(list, :element)`: true when the list value contains the
     /// given element.
     public func contains<Element: DynamoEncodable>(_ element: Element) -> Expression
         where Value == [Element]
@@ -254,8 +254,8 @@ extension Attribute where Value: DynamoEncodable {
         .set(attributeName: name, value: value.toDynamoValue())
     }
 
-    /// SET this attribute only if it doesn't currently exist on the item —
-    /// compiles to `SET attr = if_not_exists(attr, :fallback)`. Useful for
+    /// SET this attribute only if it doesn't currently exist on the item.
+    /// Compiles to `SET attr = if_not_exists(attr, :fallback)`. Useful for
     /// `createdAt`-style fields that should be initialized on first write
     /// and left alone on subsequent updates.
     public func setIfNotExists(_ fallback: Value) -> UpdateAction {
@@ -275,7 +275,7 @@ extension Attribute {
         .setIfNotExists(attributeName: name, fallback: fallback.toDynamoValue())
     }
 
-    /// REMOVE this attribute from the item. Available for any attribute —
+    /// REMOVE this attribute from the item. Available for any attribute:
     /// removing a value DynamoDB doesn't have is a no-op.
     public func remove() -> UpdateAction {
         .remove(attributeName: name)
@@ -285,7 +285,7 @@ extension Attribute {
 extension Attribute where Value: Numeric & DynamoEncodable {
     /// ADD `delta` to this numeric attribute atomically. Unlike
     /// `set(to: attr + delta)`-style expressions, ADD works whether the
-    /// attribute currently exists or not — the canonical pattern for
+    /// attribute currently exists or not, the canonical pattern for
     /// incrementing counters.
     public func add(_ delta: Value) -> UpdateAction {
         .add(attributeName: name, value: delta.toDynamoValue())
@@ -304,8 +304,8 @@ extension Attribute {
 extension Attribute {
     /// Append `items` to a list attribute. Compiles to
     /// `SET name = list_append(if_not_exists(name, :empty), :items)` so the
-    /// expression succeeds whether the attribute already exists or not —
-    /// missing becomes an empty list, then the new items are appended.
+    /// expression succeeds whether the attribute already exists or not.
+    /// Missing becomes an empty list, then the new items are appended.
     public func append<Element: DynamoEncodable>(_ items: [Element]) -> UpdateAction
         where Value == [Element] {
         .listAppend(attributeName: name, items: items.toDynamoValue())
@@ -334,7 +334,7 @@ extension Attribute {
 
 extension Attribute {
     /// Add the given elements to a set attribute (DynamoDB `ADD` clause for
-    /// sets — distinct from ADD on a numeric attribute, which increments).
+    /// sets, distinct from ADD on a numeric attribute, which increments).
     /// Set semantics: duplicates are silently no-ops.
     public func addToSet<Element: DynamoSetElement>(_ elements: Set<Element>) -> UpdateAction
         where Value == Set<Element> {
@@ -347,7 +347,7 @@ extension Attribute {
     }
 
     /// Remove the given elements from a set attribute (DynamoDB `DELETE`
-    /// clause for sets — distinct from `remove()` which deletes the whole
+    /// clause for sets, distinct from `remove()` which deletes the whole
     /// attribute).
     public func removeFromSet<Element: DynamoSetElement>(_ elements: Set<Element>) -> UpdateAction
         where Value == Set<Element> {

@@ -18,8 +18,8 @@
 //       sugar (`builder.connect { ... }`, `builder.on("subscribe") { ... }`, etc.).
 //
 //  WebSocket routing uses a `DictionaryRouter` engine because API Gateway
-//  WebSocket routes are flat string identifiers (`$connect`, `subscribe`, etc.) —
-//  there's no hierarchy, no path parameters, and no benefit from a trie. Forcing
+//  WebSocket routes are flat string identifiers (`$connect`, `subscribe`, etc.).
+//  There's no hierarchy, no path parameters, and no benefit from a trie. Forcing
 //  WebSocket through `TrieRouter` would be using the wrong data structure for
 //  the problem.
 //
@@ -35,8 +35,8 @@ public extension WebSocketRequest {
     /// This is the **single source of truth** for how WebSocket events map to
     /// routing keys. Both registration (via `WebSocketRequest.connect()` and
     /// friends) and dispatch (via `WebSocketRequest.routingKey`) call through
-    /// here. If you change this function, both sides update automatically —
-    /// they cannot drift apart.
+    /// here. If you change this function, both sides update automatically.
+    /// They cannot drift apart.
     static func route(_ routeKey: String) -> [String] {
         [routeKey]
     }
@@ -52,7 +52,7 @@ public extension WebSocketRequest {
     }
 
     /// The routing key used to dispatch this message. Symmetric with the static
-    /// factories above — both go through `route(_:)`.
+    /// factories above, both go through `route(_:)`.
     var routingKey: [String] {
         Self.route(self.event.context.routeKey)
     }

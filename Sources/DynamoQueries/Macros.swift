@@ -39,9 +39,9 @@ public macro PartitionKey() = #externalMacro(module: "DynamoQueriesMacros", type
 /// Marks a property as the table's sort key (DynamoDB range key).
 ///
 /// Optional; tables without a sort key use the partition-key-only overloads
-/// of `get` / `update` / `delete`. Mixing the two — calling the
+/// of `get` / `update` / `delete`. Mixing the two (calling the
 /// partition-key-only overload on a table that declares a sort key, or vice
-/// versa — throws ``PrimaryKeyError``.
+/// versa) throws ``PrimaryKeyError``.
 @attached(peer)
 public macro SortKey() = #externalMacro(module: "DynamoQueriesMacros", type: "SortKeyMacro")
 
@@ -57,7 +57,7 @@ public macro SortKey() = #externalMacro(module: "DynamoQueriesMacros", type: "So
 ///         @Attribute("display_name") var displayName: String
 ///     }
 ///
-/// This affects expression compilation — filter and update expressions will
+/// This affects expression compilation. Filter and update expressions will
 /// use the `@Attribute` value, not the Swift property name.
 @attached(peer)
 public macro Attribute(_ name: String) = #externalMacro(module: "DynamoQueriesMacros", type: "AttributeMacro")
@@ -80,7 +80,7 @@ public macro Attribute(_ name: String) = #externalMacro(module: "DynamoQueriesMa
 ///     .usingIndex(User.Indexes.emailIndex)
 ///     .execute(using: client)
 ///
-/// Multiple `@Index` declarations are supported on a single table — the
+/// Multiple `@Index` declarations are supported on a single table. The
 /// macro merges them into the same `Indexes` namespace.
 @attached(peer)
 public macro Index(

@@ -1,15 +1,15 @@
 import DynamoQueries
 
-/// A programmable `DynamoClient` test double — a **stub + spy**. It never talks
+/// A programmable `DynamoClient` test double: a **stub + spy**. It never talks
 /// to DynamoDB; instead it:
 ///
 /// 1. **Records** every request, both as the typed input (read back with
 ///    `lastQueryInput(for:)` / `recordedQueryInputs(for:)` etc.) and as a
 ///    rendered string appended to ``requestLog`` (snapshot ``transcript`` to pin
 ///    the whole sequence a repository or service emits).
-/// 2. **Returns canned responses** you seed ahead of time — `seedGetItem`,
+/// 2. **Returns canned responses** you seed ahead of time: `seedGetItem`,
 ///    `seedQueryPages`, `seedBatchGetResults`, `seedTransactGetResults`, …
-/// 3. **Injects errors** that fire once on the next matching call, then clear —
+/// 3. **Injects errors** that fire once on the next matching call, then clear:
 ///    `throwOnPut` / `throwOnUpdate` / `throwOnDelete` / `throwOnTransactWrite`.
 ///
 /// It does **not** store items: a `get` after a `put` returns whatever you
@@ -29,7 +29,7 @@ public actor RecordingDynamoClient: DynamoClient {
     /// Every request handled, rendered in order. Append-only.
     public private(set) var requestLog: [String] = []
 
-    /// The request log as one blank-line-separated string — snapshot this to
+    /// The request log as one blank-line-separated string. Snapshot this to
     /// pin a multi-request operation.
     public var transcript: String {
         requestLog.joined(separator: "\n\n")

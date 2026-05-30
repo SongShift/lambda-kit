@@ -1,5 +1,5 @@
 /// The transport-level interface a `DynamoClient` adapter implements. Each
-/// method is non-chainable on purpose — chaining lives on the `*Input` types
+/// method is non-chainable on purpose. Chaining lives on the `*Input` types
 /// (`QueryInput`, `ScanInput`, etc.); the client's job is just to ferry a
 /// fully built request to DynamoDB and decode the response.
 public protocol DynamoClient: Sendable {
@@ -30,7 +30,7 @@ public protocol DynamoClient: Sendable {
         _ input: ScanInput<Model>
     ) async throws -> QueryPage<Model>
 
-    /// Run a `Select: COUNT` query. Returns counts only — no items decode.
+    /// Run a `Select: COUNT` query. Returns counts only, no items decode.
     /// Adapters should set `selectCountOnly` regardless of whether the input
     /// already has it set; the input flag is just a hint.
     func count<Model: DynamoModel>(
@@ -51,8 +51,8 @@ public protocol DynamoClient: Sendable {
 
     /// Run a batch write (puts + deletes) against a single table. Adapters
     /// retry `UnprocessedItems` on every response until the remainder is
-    /// empty. Note that batch writes don't honor condition expressions —
-    /// reach for transact write if you need atomicity.
+    /// empty. Note that batch writes don't honor condition expressions.
+    /// Reach for transact write if you need atomicity.
     func batchWrite<Model: DynamoModel>(
         _ input: BatchWriteInput<Model>
     ) async throws
@@ -64,12 +64,12 @@ public protocol DynamoClient: Sendable {
 
     /// Run an atomic, serializable read of up to 100 items (which may span
     /// tables) in a single `TransactGetItems` call. Returns one optional per
-    /// leg, in the order the legs were supplied — a leg whose key matched no
+    /// leg, in the order the legs were supplied. A leg whose key matched no
     /// item decodes to `nil`. A read transaction the database cancels (for
     /// example because a conflicting write transaction is in flight) throws
     /// `TransactionCanceled`.
     ///
-    /// The transport is erased — a plain `[TransactGetItem]` (each carrying its
+    /// The transport is erased: a plain `[TransactGetItem]` (each carrying its
     /// storage metatype) in, and a positionally-aligned `[(any DynamoModel)?]`
     /// out, decoded by the adapter. The typed, ordered tuple the caller sees is
     /// rebuilt by `TransactGetInput.execute`. Adapters must return one entry per

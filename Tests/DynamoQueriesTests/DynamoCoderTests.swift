@@ -4,8 +4,8 @@ import Foundation
 import SotoDynamoDB
 import Testing
 
-// Round-trip tests for the direct Codable ↔ DynamoDB.AttributeValue bridge.
-// These cover the cases that the existing equivalence suites don't —
+// Round-trip tests for the direct bridge between Codable and DynamoDB.AttributeValue.
+// These cover the cases that the existing equivalence suites don't.
 // `Equivalence.swift` deliberately skips item-body comparison because the
 // previous JSONEncoder path produced wire-format noise (e.g. `1.0` vs `1`)
 // that wasn't worth pinning down.
@@ -50,8 +50,8 @@ struct DynamoCoderTests {
         let withoutItem = try DynamoEncoder.encode(withoutName)
 
         #expect(withItem["nickname"] == .s("Ada"))
-        // `encodeIfPresent` (the Codable-synthesized path) skips nil entirely
-        // — the key should not be in the encoded item.
+        // `encodeIfPresent` (the Codable-synthesized path) skips nil entirely:
+        // the key should not be in the encoded item.
         #expect(withoutItem["nickname"] == nil)
 
         #expect(try DynamoDecoder.decode(Row.self, from: withItem) == withName)
@@ -106,7 +106,7 @@ struct DynamoCoderTests {
     @Test("Plain Data falls through to a chunky byte-list — prefer AWSBase64Data")
     func plainDataFallback() throws {
         // Pinned as documentation: Soto's coder doesn't special-case `Data`,
-        // so a `Data` field encodes as `.l([.n("…")])` — round-trip works,
+        // so a `Data` field encodes as `.l([.n("…")])`, round-trip works,
         // but the wire is ~4× the size of native `.b`. New models should use
         // `AWSBase64Data` (see `awsBase64DataRoundTrip`).
         struct Row: Codable, Equatable {
@@ -155,7 +155,7 @@ struct DynamoCoderTests {
         let value = Row(id: "1", stamp: stamp)
         let item = try DynamoEncoder.encode(value)
 
-        // Matches the manual `DynamoEncodable` extension on `Date` — both
+        // Matches the manual `DynamoEncodable` extension on `Date`. Both
         // paths now write epoch seconds, so a value written via
         // `Attribute<Date>.set(...)` round-trips through Codable cleanly.
         guard case .n(let raw) = item["stamp"] else {

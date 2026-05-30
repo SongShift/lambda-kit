@@ -9,7 +9,7 @@ import Testing
 // compare them, we substitute every placeholder with its underlying attribute
 // name / attribute value and compare the resulting strings byte-for-byte. The
 // Soto reference fixtures in this test target are written using the same
-// parenthesization the DynamoQueries `ExpressionCompiler` emits — so once
+// parenthesization the DynamoQueries `ExpressionCompiler` emits. Once
 // placeholders are resolved, the two strings are identical.
 
 struct ResolvedExpression: Equatable, CustomStringConvertible {
@@ -157,7 +157,7 @@ func expectEquivalent(
 
 // MARK: - PutItemInput equivalence (item body intentionally not compared)
 //
-// The PutItem fixtures here exercise condition expressions only — the item
+// The PutItem fixtures here exercise condition expressions only: the item
 // payload itself is encoded by the Soto adapter through `JSONEncoder` /
 // `JSONSerialization` (see `DynamoEncoder` in DynamoQueriesSoto), and the
 // hand-written reference uses Soto's own `DynamoDBEncoder`. The two encoders

@@ -152,7 +152,7 @@ extension DynamoQueries.QueryInput {
     /// Converts a DynamoQueries `QueryInput` to Soto's `DynamoDB.QueryInput`.
     ///
     /// Pass `tableNameOverride` to substitute a different on-the-wire table
-    /// name than the one the input was built with — `SotoDynamoClient` uses
+    /// name than the one the input was built with. `SotoDynamoClient` uses
     /// this to apply its configured environment suffix.
     public func toSotoQueryInput(tableNameOverride: String? = nil) -> DynamoDB.QueryInput {
         let (projection, names) = resolveProjection(
@@ -215,7 +215,7 @@ extension DynamoQueries.GetItemInput {
         )
     }
 
-    /// Converts this get into a `DynamoDB.Get` — the leg shape `TransactGetItems`
+    /// Converts this get into a `DynamoDB.Get`: the leg shape `TransactGetItems`
     /// expects. `consistentRead` is intentionally dropped: read transactions are
     /// always serializable and have no per-item consistency setting.
     public func toSotoGet(tableNameOverride: String? = nil) -> DynamoDB.Get {
@@ -322,7 +322,7 @@ public struct SotoDynamoClient: DynamoClient {
     ///   - database: The underlying Soto `DynamoDB` service.
     ///   - tableNameSuffix: Appended to every model's logical table name
     ///     before the request hits the wire. Use this to route an entire
-    ///     deploy at a stage-specific table set — for example, pass
+    ///     deploy at a stage-specific table set. For example, pass
     ///     `"-prod"` so a model declared as `@Table("Hikes")` reads and
     ///     writes `"Hikes-prod"`. Default `""` is a no-op.
     public init(database: DynamoDB, tableNameSuffix: String = "") {
@@ -697,7 +697,7 @@ extension DynamoDB.AttributeValue {
         case .b(let base64):
             // `decoded()` returns `[UInt8]?`; `nil` means the wire value
             // wasn't valid base64, which would already have failed Soto's
-            // own decode — treat as a programmer error if we see it here.
+            // own decode. Treat as a programmer error if we see it here.
             return .binary(Data(base64.decoded() ?? []))
         case .null: return .null
         case .l(let values): return .list(values.map { $0.toDynamoValue() })
@@ -714,19 +714,19 @@ extension DynamoDB.AttributeValue {
 //
 // Thin wrappers around Soto's `DynamoDBEncoder` / `DynamoDBDecoder`, which
 // translate Swift `Codable` values directly to/from
-// `DynamoDB.AttributeValue` — no JSON byte buffer, no `[String: Any]`
+// `DynamoDB.AttributeValue`: no JSON byte buffer, no `[String: Any]`
 // boxing on the per-item path.
 //
 // Date strategy is pinned to `.secondsSince1970` so the Codable path
 // agrees with the `DynamoEncodable` extension on `Date` in
-// `DynamoQueries/Core/DynamoValue.swift` — both write Unix-epoch seconds
+// `DynamoQueries/Core/DynamoValue.swift`. Both write Unix-epoch seconds
 // in a `.n` attribute, keeping values sortable in DynamoDB indexes and
 // timezone-correct without further configuration.
 //
 // Binary fields:
-// Soto's coder only special-cases `AWSBase64Data` (→ `.b`, native
+// Soto's coder only special-cases `AWSBase64Data` (`.b` on the wire, native
 // DynamoDB binary). Plain `Data` falls through to `Data.encode(to:)`,
-// which writes each byte as an integer in a list (`.l([.n("…"), …])`) —
+// which writes each byte as an integer in a list (`.l([.n("…"), …])`),
 // roughly 4× the wire size and not a proper binary type. Declare binary
 // model fields as `AWSBase64Data` rather than `Data` to get native `.b`
 // storage. The `DynamoEncodable` / `DynamoSizable` conformances below

@@ -2,7 +2,7 @@
 ///
 /// `ScanInput` is `QueryInput` minus the key-condition expression. DynamoDB
 /// applies the filter *after* it has read the page from disk, so a filtered
-/// scan still bills for the unfiltered read — a heavy hint that scans are a
+/// scan still bills for the unfiltered read, a heavy hint that scans are a
 /// last resort. Reach for `Query` whenever the access pattern lets you
 /// constrain the partition key.
 public struct ScanInput<Model: DynamoModel>: Sendable {
@@ -92,7 +92,7 @@ extension ScanInput {
     }
 
     /// Stream the scan as an `AsyncSequence` of pages. Each `next()` fires
-    /// one DynamoDB Scan request — backpressure is the consumer's. Scans bill
+    /// one DynamoDB Scan request. Backpressure is the consumer's. Scans bill
     /// for every item read regardless of filter, so iterating a large table
     /// is expensive even if you stop early.
     public func pages(using client: any DynamoClient) -> ScanPageSequence<Model> {
@@ -111,7 +111,7 @@ extension ScanInput {
     }
 
     /// Count matching items via `Select: COUNT`. Same caveat as
-    /// `QueryInput.count` — the scan still bills full RCU for items it
+    /// `QueryInput.count`: the scan still bills full RCU for items it
     /// touched.
     public func count(using client: any DynamoClient) async throws -> Int {
         var input = self

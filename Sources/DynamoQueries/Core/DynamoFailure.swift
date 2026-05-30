@@ -75,7 +75,7 @@ public struct DynamoFailure: Error, Sendable {
         // MARK: Catch-all
 
         /// Adapter saw a failure it doesn't categorize. The raw AWS code (if
-        /// known) is preserved for diagnostics. Treated as non-retryable —
+        /// known) is preserved for diagnostics. Treated as non-retryable,
         /// erring on the side of *not* retrying when we don't recognize the
         /// signal.
         case unknown(code: String?)
@@ -100,7 +100,7 @@ extension DynamoFailure: DynamoError {
     public var isRetryable: Bool { reason.isRetryable }
 }
 
-/// Shared interface across every lambda-kit error type — `DynamoFailure`,
+/// Shared interface across every lambda-kit error type: `DynamoFailure`,
 /// `TransactionCanceled`, and `ConditionalCheckFailed<Model>` all conform.
 /// Lets callers ask "should I retry this?" without knowing which concrete
 /// type they caught:
@@ -113,7 +113,7 @@ extension DynamoFailure: DynamoError {
 public protocol DynamoError: Error {
     /// True if retrying the same operation after a backoff is reasonable.
     /// False for business-rule failures (condition checks, validation,
-    /// duplicate items, auth) and unrecognized errors — those will fail the
+    /// duplicate items, auth) and unrecognized errors. Those will fail the
     /// same way every time.
     var isRetryable: Bool { get }
 }

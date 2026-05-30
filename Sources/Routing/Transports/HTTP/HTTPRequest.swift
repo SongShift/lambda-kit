@@ -12,7 +12,7 @@ import Foundation
 /// AWS Lambda `APIGatewayV2Request` event.
 ///
 /// `HTTPRequest` exposes a small set of typed conveniences as explicit stored
-/// properties — `body`, `pathParameters`, `queryParameters`, `headers` — and
+/// properties (`body`, `pathParameters`, `queryParameters`, `headers`) and
 /// forwards every other member access through to the underlying event. Handlers
 /// therefore see the full surface of the AWS event without us having to surface
 /// each field manually:
@@ -27,7 +27,7 @@ import Foundation
 /// }
 /// ```
 ///
-/// The `Routable` conformance — including `routingKey` — and the static
+/// The `Routable` conformance (including `routingKey`) and the static
 /// factories for building registration keys (`HTTPRequest.get(_:)`,
 /// `HTTPRequest.post(_:)`, etc.) live in `HTTPRouter.swift` so that all
 /// HTTP-specific routing knowledge is colocated.

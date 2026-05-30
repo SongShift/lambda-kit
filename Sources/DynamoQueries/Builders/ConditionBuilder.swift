@@ -1,5 +1,5 @@
 /// A result builder for conditional-write `where:` blocks on `put`,
-/// `update`, and `delete`. Structurally identical to `FilterBuilder` —
+/// `update`, and `delete`. Structurally identical to `FilterBuilder`,
 /// separate so call sites read naturally (a closure labeled `where:`
 /// belongs to a `ConditionBuilder`, not a `FilterBuilder`).
 @resultBuilder
