@@ -57,7 +57,10 @@ let package = Package(
         ),
         .target(
             name: "DynamoQueries",
-            dependencies: ["DynamoQueriesMacros"]
+            dependencies: [
+                "DynamoQueriesMacros",
+                .product(name: "Logging", package: "swift-log"),
+            ]
         ),
         .target(
             name: "DynamoQueriesSoto",

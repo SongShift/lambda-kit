@@ -1,4 +1,5 @@
 import DynamoQueries
+import Logging
 import SotoDynamoDB
 import Foundation
 
@@ -338,11 +339,15 @@ public struct SotoDynamoClient: DynamoClient {
     }
 
     public func execute<Model: DynamoModel>(
-        _ input: DynamoQueries.QueryInput<Model>
+        _ input: DynamoQueries.QueryInput<Model>,
+        logger: Logger
     ) async throws -> QueryPage<Model> {
         try await translatingDynamoFailures {
             let resolved = self.resolveTableName(input.tableName)
-            let output = try await self.database.query(input.toSotoQueryInput(tableNameOverride: resolved))
+            let output = try await self.database.query(
+                input.toSotoQueryInput(tableNameOverride: resolved),
+                logger: logger
+            )
             let items = try (output.items ?? []).map { item in
                 try DynamoDecoder.decode(Model.self, from: item)
             }
@@ -354,18 +359,23 @@ public struct SotoDynamoClient: DynamoClient {
     }
 
     public func getItem<Model: DynamoModel>(
-        _ input: DynamoQueries.GetItemInput<Model>
+        _ input: DynamoQueries.GetItemInput<Model>,
+        logger: Logger
     ) async throws -> Model? {
         try await translatingDynamoFailures {
             let resolved = self.resolveTableName(input.tableName)
-            let output = try await self.database.getItem(input.toSotoGetItemInput(tableNameOverride: resolved))
+            let output = try await self.database.getItem(
+                input.toSotoGetItemInput(tableNameOverride: resolved),
+                logger: logger
+            )
             guard let item = output.item else { return nil }
             return try DynamoDecoder.decode(Model.self, from: item)
         }
     }
 
     public func putItem<Model: DynamoModel>(
-        _ input: DynamoQueries.PutItemInput<Model>
+        _ input: DynamoQueries.PutItemInput<Model>,
+        logger: Logger
     ) async throws {
         let resolved = resolveTableName(input.tableName)
         let sotoInput = try input.toSotoPutItemInput(tableNameOverride: resolved)
@@ -374,13 +384,14 @@ public struct SotoDynamoClient: DynamoClient {
                 table: resolved,
                 as: Model.self
             ) {
-                _ = try await self.database.putItem(sotoInput)
+                _ = try await self.database.putItem(sotoInput, logger: logger)
             }
         }
     }
 
     public func updateItem<Model: DynamoModel>(
-        _ input: DynamoQueries.UpdateInput<Model>
+        _ input: DynamoQueries.UpdateInput<Model>,
+        logger: Logger
     ) async throws {
         let resolved = resolveTableName(input.tableName)
         try await translatingDynamoFailures {
@@ -388,13 +399,17 @@ public struct SotoDynamoClient: DynamoClient {
                 table: resolved,
                 as: Model.self
             ) {
-                _ = try await self.database.updateItem(input.toSotoUpdateItemInput(tableNameOverride: resolved))
+                _ = try await self.database.updateItem(
+                    input.toSotoUpdateItemInput(tableNameOverride: resolved),
+                    logger: logger
+                )
             }
         }
     }
 
     public func updateItemReturning<Model: DynamoModel>(
-        _ input: DynamoQueries.UpdateReturning<Model>
+        _ input: DynamoQueries.UpdateReturning<Model>,
+        logger: Logger
     ) async throws -> Model? {
         let resolved = resolveTableName(input.input.tableName)
         var result: Model?
@@ -403,7 +418,10 @@ public struct SotoDynamoClient: DynamoClient {
                 table: resolved,
                 as: Model.self
             ) {
-                let output = try await self.database.updateItem(input.toSotoUpdateItemInput(tableNameOverride: resolved))
+                let output = try await self.database.updateItem(
+                    input.toSotoUpdateItemInput(tableNameOverride: resolved),
+                    logger: logger
+                )
                 if let attributes = output.attributes {
                     result = try? DynamoDecoder.decode(Model.self, from: attributes)
                 }
@@ -413,7 +431,8 @@ public struct SotoDynamoClient: DynamoClient {
     }
 
     public func deleteItem<Model: DynamoModel>(
-        _ input: DynamoQueries.DeleteItemInput<Model>
+        _ input: DynamoQueries.DeleteItemInput<Model>,
+        logger: Logger
     ) async throws {
         let resolved = resolveTableName(input.tableName)
         try await translatingDynamoFailures {
@@ -421,17 +440,24 @@ public struct SotoDynamoClient: DynamoClient {
                 table: resolved,
                 as: Model.self
             ) {
-                _ = try await self.database.deleteItem(input.toSotoDeleteItemInput(tableNameOverride: resolved))
+                _ = try await self.database.deleteItem(
+                    input.toSotoDeleteItemInput(tableNameOverride: resolved),
+                    logger: logger
+                )
             }
         }
     }
 
     public func scan<Model: DynamoModel>(
-        _ input: DynamoQueries.ScanInput<Model>
+        _ input: DynamoQueries.ScanInput<Model>,
+        logger: Logger
     ) async throws -> QueryPage<Model> {
         try await translatingDynamoFailures {
             let resolved = self.resolveTableName(input.tableName)
-            let output = try await self.database.scan(input.toSotoScanInput(tableNameOverride: resolved))
+            let output = try await self.database.scan(
+                input.toSotoScanInput(tableNameOverride: resolved),
+                logger: logger
+            )
             let items = try (output.items ?? []).map { item in
                 try DynamoDecoder.decode(Model.self, from: item)
             }
@@ -443,13 +469,17 @@ public struct SotoDynamoClient: DynamoClient {
     }
 
     public func count<Model: DynamoModel>(
-        _ input: DynamoQueries.QueryInput<Model>
+        _ input: DynamoQueries.QueryInput<Model>,
+        logger: Logger
     ) async throws -> CountPage {
         try await translatingDynamoFailures {
             let resolved = self.resolveTableName(input.tableName)
             var withCount = input
             withCount.selectCountOnly = true
-            let output = try await self.database.query(withCount.toSotoQueryInput(tableNameOverride: resolved))
+            let output = try await self.database.query(
+                withCount.toSotoQueryInput(tableNameOverride: resolved),
+                logger: logger
+            )
             let nextToken = output.lastEvaluatedKey.map { key in
                 PaginationToken(key: key.mapValues { $0.toDynamoValue() })
             }
@@ -462,7 +492,8 @@ public struct SotoDynamoClient: DynamoClient {
     }
 
     public func transactWrite(
-        _ items: [DynamoQueries.TransactWriteItem]
+        _ items: [DynamoQueries.TransactWriteItem],
+        logger: Logger
     ) async throws {
         let sotoItems = try items.map { item -> DynamoDB.TransactWriteItem in
             let resolved = resolveTableName(item.tableName)
@@ -507,13 +538,14 @@ public struct SotoDynamoClient: DynamoClient {
         let soto = DynamoDB.TransactWriteItemsInput(transactItems: sotoItems)
         try await translatingDynamoFailures {
             try await translatingTransactionFailures {
-                _ = try await self.database.transactWriteItems(soto)
+                _ = try await self.database.transactWriteItems(soto, logger: logger)
             }
         }
     }
 
     public func transactGet(
-        _ items: [DynamoQueries.TransactGetItem]
+        _ items: [DynamoQueries.TransactGetItem],
+        logger: Logger
     ) async throws -> [(any DynamoModel)?] {
         // Lower each erased leg into a Soto `Get`, applying the configured table
         // suffix and projection. `sotoItems` lines up 1:1 with `items`, which
@@ -535,7 +567,8 @@ public struct SotoDynamoClient: DynamoClient {
         let output = try await translatingDynamoFailures {
             try await translatingTransactionFailures {
                 try await self.database.transactGetItems(
-                    DynamoDB.TransactGetItemsInput(transactItems: sotoItems)
+                    DynamoDB.TransactGetItemsInput(transactItems: sotoItems),
+                    logger: logger
                 )
             }
         }
@@ -571,7 +604,8 @@ public struct SotoDynamoClient: DynamoClient {
     }
 
     public func batchWrite<Model: DynamoModel>(
-        _ input: DynamoQueries.BatchWriteInput<Model>
+        _ input: DynamoQueries.BatchWriteInput<Model>,
+        logger: Logger
     ) async throws {
         try await translatingDynamoFailures {
             let resolved = self.resolveTableName(input.tableName)
@@ -591,14 +625,15 @@ public struct SotoDynamoClient: DynamoClient {
                 let soto = DynamoDB.BatchWriteItemInput(
                     requestItems: [resolved: pending]
                 )
-                let output = try await self.database.batchWriteItem(soto)
+                let output = try await self.database.batchWriteItem(soto, logger: logger)
                 pending = output.unprocessedItems?[resolved] ?? []
             }
         }
     }
 
     public func batchGet<Model: DynamoModel>(
-        _ input: DynamoQueries.BatchGetInput<Model>
+        _ input: DynamoQueries.BatchGetInput<Model>,
+        logger: Logger
     ) async throws -> [Model] {
         try await translatingDynamoFailures {
             let resolved = self.resolveTableName(input.tableName)
@@ -618,7 +653,7 @@ public struct SotoDynamoClient: DynamoClient {
                 let soto = DynamoDB.BatchGetItemInput(
                     requestItems: [resolved: request]
                 )
-                let output = try await self.database.batchGetItem(soto)
+                let output = try await self.database.batchGetItem(soto, logger: logger)
                 if let items = output.responses?[resolved] {
                     for item in items {
                         let decoded = try DynamoDecoder.decode(Model.self, from: item)
@@ -638,13 +673,17 @@ public struct SotoDynamoClient: DynamoClient {
     }
 
     public func count<Model: DynamoModel>(
-        _ input: DynamoQueries.ScanInput<Model>
+        _ input: DynamoQueries.ScanInput<Model>,
+        logger: Logger
     ) async throws -> CountPage {
         try await translatingDynamoFailures {
             let resolved = self.resolveTableName(input.tableName)
             var withCount = input
             withCount.selectCountOnly = true
-            let output = try await self.database.scan(withCount.toSotoScanInput(tableNameOverride: resolved))
+            let output = try await self.database.scan(
+                withCount.toSotoScanInput(tableNameOverride: resolved),
+                logger: logger
+            )
             let nextToken = output.lastEvaluatedKey.map { key in
                 PaginationToken(key: key.mapValues { $0.toDynamoValue() })
             }

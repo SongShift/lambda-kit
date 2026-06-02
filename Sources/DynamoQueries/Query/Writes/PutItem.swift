@@ -1,3 +1,5 @@
+import Logging
+
 /// An insert-or-replace request for a single item.
 ///
 /// Holding the concrete `Model` value (rather than a pre-encoded
@@ -51,8 +53,11 @@ extension PutItemInput {
 // MARK: - Execute
 
 extension PutItemInput {
-    public func execute(using client: any DynamoClient) async throws {
-        try await client.putItem(self)
+    public func execute(
+        using client: any DynamoClient,
+        logger: Logger = .dynamoQueriesDisabled
+    ) async throws {
+        try await client.putItem(self, logger: logger)
     }
 }
 

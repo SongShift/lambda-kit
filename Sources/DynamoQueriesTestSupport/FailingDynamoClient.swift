@@ -1,4 +1,5 @@
 import DynamoQueries
+import Logging
 
 /// A `DynamoClient` whose whole job is to **fail**, so you can test how a
 /// repository or service reacts when DynamoDB errors. It throws a configured
@@ -118,73 +119,101 @@ public actor FailingDynamoClient: DynamoClient {
     // MARK: - DynamoClient
 
     public func execute<Model: DynamoModel>(
-        _ input: QueryInput<Model>
+        _ input: QueryInput<Model>,
+        logger _: Logger
     ) async throws -> QueryPage<Model> {
         try failIfNeeded(.query)
         return QueryPage(items: [], nextToken: nil)
     }
 
     public func getItem<Model: DynamoModel>(
-        _ input: GetItemInput<Model>
+        _ input: GetItemInput<Model>,
+        logger _: Logger
     ) async throws -> Model? {
         try failIfNeeded(.get)
         return nil
     }
 
-    public func putItem<Model: DynamoModel>(_ input: PutItemInput<Model>) async throws {
+    public func putItem<Model: DynamoModel>(
+        _ input: PutItemInput<Model>,
+        logger _: Logger
+    ) async throws {
         try failConditionalConflict(Model.self, returnPrior: input.returnPriorOnConflict)
         try failIfNeeded(.put)
     }
 
-    public func updateItem<Model: DynamoModel>(_ input: UpdateInput<Model>) async throws {
+    public func updateItem<Model: DynamoModel>(
+        _ input: UpdateInput<Model>,
+        logger _: Logger
+    ) async throws {
         try failConditionalConflict(Model.self, returnPrior: input.returnPriorOnConflict)
         try failIfNeeded(.update)
     }
 
     public func updateItemReturning<Model: DynamoModel>(
-        _ input: UpdateReturning<Model>
+        _ input: UpdateReturning<Model>,
+        logger _: Logger
     ) async throws -> Model? {
         try failConditionalConflict(Model.self, returnPrior: input.input.returnPriorOnConflict)
         try failIfNeeded(.update)
         return nil
     }
 
-    public func deleteItem<Model: DynamoModel>(_ input: DeleteItemInput<Model>) async throws {
+    public func deleteItem<Model: DynamoModel>(
+        _ input: DeleteItemInput<Model>,
+        logger _: Logger
+    ) async throws {
         try failConditionalConflict(Model.self, returnPrior: input.returnPriorOnConflict)
         try failIfNeeded(.delete)
     }
 
     public func scan<Model: DynamoModel>(
-        _ input: ScanInput<Model>
+        _ input: ScanInput<Model>,
+        logger _: Logger
     ) async throws -> QueryPage<Model> {
         try failIfNeeded(.scan)
         return QueryPage(items: [], nextToken: nil)
     }
 
-    public func count<Model: DynamoModel>(_ input: QueryInput<Model>) async throws -> CountPage {
+    public func count<Model: DynamoModel>(
+        _ input: QueryInput<Model>,
+        logger _: Logger
+    ) async throws -> CountPage {
         try failIfNeeded(.count)
         return CountPage(count: 0, scannedCount: 0, nextToken: nil)
     }
 
-    public func count<Model: DynamoModel>(_ input: ScanInput<Model>) async throws -> CountPage {
+    public func count<Model: DynamoModel>(
+        _ input: ScanInput<Model>,
+        logger _: Logger
+    ) async throws -> CountPage {
         try failIfNeeded(.count)
         return CountPage(count: 0, scannedCount: 0, nextToken: nil)
     }
 
-    public func batchGet<Model: DynamoModel>(_ input: BatchGetInput<Model>) async throws -> [Model] {
+    public func batchGet<Model: DynamoModel>(
+        _ input: BatchGetInput<Model>,
+        logger _: Logger
+    ) async throws -> [Model] {
         try failIfNeeded(.batchGet)
         return []
     }
 
-    public func batchWrite<Model: DynamoModel>(_ input: BatchWriteInput<Model>) async throws {
+    public func batchWrite<Model: DynamoModel>(
+        _ input: BatchWriteInput<Model>,
+        logger _: Logger
+    ) async throws {
         try failIfNeeded(.batchWrite)
     }
 
-    public func transactWrite(_ items: [TransactWriteItem]) async throws {
+    public func transactWrite(_ items: [TransactWriteItem], logger _: Logger) async throws {
         try failIfNeeded(.transactWrite)
     }
 
-    public func transactGet(_ items: [TransactGetItem]) async throws -> [(any DynamoModel)?] {
+    public func transactGet(
+        _ items: [TransactGetItem],
+        logger _: Logger
+    ) async throws -> [(any DynamoModel)?] {
         try failIfNeeded(.transactGet)
         return items.map { _ in nil }
     }

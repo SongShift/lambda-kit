@@ -9,14 +9,29 @@ The protocol is intentionally non-chainable: chaining lives on the typed
 inputs (``QueryInput``, ``ScanInput``, etc.); the client's job is just to
 ferry a fully-built request to DynamoDB and decode the response.
 
+Every method takes a `logger` the adapter forwards to its transport. Call sites
+rarely pass one directly: the `*Input.execute(using:)` family defaults to
+``Logger/dynamoQueriesDisabled``, and the `execute(using:logger:)` overload
+threads a real per-request logger (e.g. a Lambda's `context.logger`) through to
+DynamoDB.
+
 ```swift
 public protocol DynamoClient: Sendable {
-    func execute<Model: DynamoModel>(_ input: QueryInput<Model>) async throws -> QueryPage<Model>
-    func getItem<Model: DynamoModel>(_ input: GetItemInput<Model>) async throws -> Model?
-    func putItem<Model: DynamoModel>(_ input: PutItemInput<Model>) async throws
-    func updateItem<Model: DynamoModel>(_ input: UpdateInput<Model>) async throws
+    func execute<Model: DynamoModel>(_ input: QueryInput<Model>, logger: Logger) async throws -> QueryPage<Model>
+    func getItem<Model: DynamoModel>(_ input: GetItemInput<Model>, logger: Logger) async throws -> Model?
+    func putItem<Model: DynamoModel>(_ input: PutItemInput<Model>, logger: Logger) async throws
+    func updateItem<Model: DynamoModel>(_ input: UpdateInput<Model>, logger: Logger) async throws
     // ... and so on for delete, scan, count, batchGet, batchWrite, transactWrite.
 }
+```
+
+```swift
+// Logging disabled (the default):
+let page = try await Model.query { Key { $0.id == id } }.execute(using: client)
+
+// Opt in to per-request logging:
+let page = try await Model.query { Key { $0.id == id } }
+    .execute(using: client, logger: context.logger)
 ```
 
 ## SotoDynamoClient
@@ -59,7 +74,7 @@ A skeleton looks like this:
 actor MockDynamoClient: DynamoClient {
     var queries: [Any] = []
 
-    func execute<Model: DynamoModel>(_ input: QueryInput<Model>) async throws -> QueryPage<Model> {
+    func execute<Model: DynamoModel>(_ input: QueryInput<Model>, logger: Logger) async throws -> QueryPage<Model> {
         queries.append(input)
         return QueryPage(items: [], nextToken: nil)
     }

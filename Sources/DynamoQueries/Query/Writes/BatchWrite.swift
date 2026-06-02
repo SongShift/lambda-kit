@@ -1,3 +1,5 @@
+import Logging
+
 /// A multi-item write against a single table: up to 25 items (puts +
 /// deletes combined) per DynamoDB request, 16MB total. Adapters retry the
 /// `UnprocessedItems` portion of every response until empty.
@@ -70,8 +72,11 @@ extension BatchWriteInput {
 // MARK: - Execute
 
 extension BatchWriteInput {
-    public func execute(using client: any DynamoClient) async throws {
-        try await client.batchWrite(self)
+    public func execute(
+        using client: any DynamoClient,
+        logger: Logger = .dynamoQueriesDisabled
+    ) async throws {
+        try await client.batchWrite(self, logger: logger)
     }
 }
 

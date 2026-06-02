@@ -1,3 +1,5 @@
+import Logging
+
 /// A targeted update against an existing item, identified by its primary
 /// key. Unlike `PutItem`, `UpdateItem` modifies only the attributes named in
 /// the update expression; everything else on the item is left alone.
@@ -99,16 +101,22 @@ public struct UpdateReturning<Model: DynamoModel>: Sendable {
         self.returnValues = returnValues
     }
 
-    public func execute(using client: any DynamoClient) async throws -> Model? {
-        try await client.updateItemReturning(self)
+    public func execute(
+        using client: any DynamoClient,
+        logger: Logger = .dynamoQueriesDisabled
+    ) async throws -> Model? {
+        try await client.updateItemReturning(self, logger: logger)
     }
 }
 
 // MARK: - Execute
 
 extension UpdateInput {
-    public func execute(using client: any DynamoClient) async throws {
-        try await client.updateItem(self)
+    public func execute(
+        using client: any DynamoClient,
+        logger: Logger = .dynamoQueriesDisabled
+    ) async throws {
+        try await client.updateItem(self, logger: logger)
     }
 }
 

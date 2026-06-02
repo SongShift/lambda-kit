@@ -1,3 +1,5 @@
+import Logging
+
 /// A compiled DynamoDB Scan request, parameterized by the model it returns.
 ///
 /// `ScanInput` is `QueryInput` minus the key-condition expression. DynamoDB
@@ -87,24 +89,35 @@ extension ScanInput {
 // MARK: - Execute
 
 extension ScanInput {
-    public func execute(using client: any DynamoClient) async throws -> QueryPage<Model> {
-        try await client.scan(self)
+    /// Run a single page of the scan. The bare `execute(using:)` form (logging
+    /// disabled) comes from the `PagedRead` protocol extension.
+    public func execute(
+        using client: any DynamoClient,
+        logger: Logger
+    ) async throws -> QueryPage<Model> {
+        try await client.scan(self, logger: logger)
     }
 
     /// Stream the scan as an `AsyncSequence` of pages. Each `next()` fires
     /// one DynamoDB Scan request. Backpressure is the consumer's. Scans bill
     /// for every item read regardless of filter, so iterating a large table
     /// is expensive even if you stop early.
-    public func pages(using client: any DynamoClient) -> ScanPageSequence<Model> {
-        ScanPageSequence(input: self, client: client)
+    public func pages(
+        using client: any DynamoClient,
+        logger: Logger
+    ) -> ScanPageSequence<Model> {
+        ScanPageSequence(input: self, client: client, logger: logger)
     }
 
     /// Auto-paginating scan that returns every matching item. Buffers every
     /// item in memory; for unbounded result sets reach for `pages(using:)`
     /// instead.
-    public func executeAll(using client: any DynamoClient) async throws -> [Model] {
+    public func executeAll(
+        using client: any DynamoClient,
+        logger: Logger
+    ) async throws -> [Model] {
         var allItems: [Model] = []
-        for try await page in pages(using: client) {
+        for try await page in pages(using: client, logger: logger) {
             allItems.append(contentsOf: page.items)
         }
         return allItems
@@ -113,14 +126,17 @@ extension ScanInput {
     /// Count matching items via `Select: COUNT`. Same caveat as
     /// `QueryInput.count`: the scan still bills full RCU for items it
     /// touched.
-    public func count(using client: any DynamoClient) async throws -> Int {
+    public func count(
+        using client: any DynamoClient,
+        logger: Logger
+    ) async throws -> Int {
         var input = self
         input.selectCountOnly = true
         var total = 0
         var token: PaginationToken? = nil
         repeat {
             input.exclusiveStartKey = token?.key
-            let page = try await client.count(input)
+            let page = try await client.count(input, logger: logger)
             total += page.count
             token = page.nextToken
         } while token != nil
@@ -135,19 +151,21 @@ public struct ScanPageSequence<Model: DynamoModel>: AsyncSequence {
 
     let input: ScanInput<Model>
     let client: any DynamoClient
+    let logger: Logger
 
     public func makeAsyncIterator() -> AsyncIterator {
-        AsyncIterator(input: input, client: client)
+        AsyncIterator(input: input, client: client, logger: logger)
     }
 
     public struct AsyncIterator: AsyncIteratorProtocol {
         var input: ScanInput<Model>
         let client: any DynamoClient
+        let logger: Logger
         var finished = false
 
         public mutating func next() async throws -> QueryPage<Model>? {
             if finished { return nil }
-            let page = try await client.scan(input)
+            let page = try await client.scan(input, logger: logger)
             if let token = page.nextToken {
                 input = input.startToken(token)
             } else {

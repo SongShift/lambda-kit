@@ -1,3 +1,5 @@
+import Logging
+
 /// A primary-key read leg that can be composed into a `TransactGet { ... }`
 /// block *or* executed on its own. Both a plain `GetItemInput` and a mapped
 /// `MappedGet` conform, so there is no difference between a "raw" and a
@@ -22,8 +24,11 @@ extension Read {
     /// for a missing key; the transform is applied only to a present item.
     /// Available on any `Read`, so an opaque `some Read<Output>` return
     /// is fully usable. It composes in `TransactGet` *and* executes here.
-    public func execute(using client: any DynamoClient) async throws -> Output? {
-        try await getItemInput.execute(using: client).map(transform)
+    public func execute(
+        using client: any DynamoClient,
+        logger: Logger = .dynamoQueriesDisabled
+    ) async throws -> Output? {
+        try await getItemInput.execute(using: client, logger: logger).map(transform)
     }
 
     /// The type-erased request for this leg, carrying the storage metatype so
@@ -164,7 +169,8 @@ extension TransactGetInput {
     /// item. The transport decodes to each leg's `Storage`; the leg's transform
     /// is applied afterward.
     public func execute(
-        using client: any DynamoClient
+        using client: any DynamoClient,
+        logger: Logger = .dynamoQueriesDisabled
     ) async throws -> (repeat (each Leg).Output?) {
         // Build the erased request by appending over the leg pack (an array
         // build, never a pack passed to the async call), then index-walk the
@@ -173,7 +179,7 @@ extension TransactGetInput {
         var items: [TransactGetItem] = []
         repeat items.append((each legs).transactGetItem)
 
-        let raws = try await client.transactGet(items)
+        let raws = try await client.transactGet(items, logger: logger)
 
         var index = 0
         func decodeNext<L: Read>(_ leg: L) -> L.Output? {

@@ -1,3 +1,5 @@
+import Logging
+
 /// Mapped read inputs: the result of calling `.map` on a *collection / paged*
 /// read (`QueryInput`, `ScanInput`, `BatchGetInput`) or on `UpdateReturning`.
 ///
@@ -57,26 +59,33 @@ public struct MappedQuery<Model: DynamoModel, Output: Sendable>: Sendable {
     let transform: @Sendable (Model) -> Output
 
     /// One page, items transformed.
-    public func execute(using client: any DynamoClient) async throws -> QueryPage<Output> {
-        try await input.execute(using: client).map(transform)
+    public func execute(
+        using client: any DynamoClient,
+        logger: Logger
+    ) async throws -> QueryPage<Output> {
+        try await input.execute(using: client, logger: logger).map(transform)
     }
 
     /// Stream pages lazily; each page's items are transformed.
     public func pages(
-        using client: any DynamoClient
+        using client: any DynamoClient,
+        logger: Logger
     ) -> MappedPageSequence<Model, Output, QueryPageSequence<Model>> {
-        MappedPageSequence(base: input.pages(using: client), transform: transform)
+        MappedPageSequence(base: input.pages(using: client, logger: logger), transform: transform)
     }
 
     /// Auto-paginate and transform every item into a flat array.
-    public func executeAll(using client: any DynamoClient) async throws -> [Output] {
-        try await input.executeAll(using: client).map(transform)
+    public func executeAll(
+        using client: any DynamoClient,
+        logger: Logger
+    ) async throws -> [Output] {
+        try await input.executeAll(using: client, logger: logger).map(transform)
     }
 
     /// Count matching items. The transform is irrelevant to a `Select: COUNT`
     /// request, so this is identical to the unmapped `count`.
-    public func count(using client: any DynamoClient) async throws -> Int {
-        try await input.count(using: client)
+    public func count(using client: any DynamoClient, logger: Logger) async throws -> Int {
+        try await input.count(using: client, logger: logger)
     }
 
     /// Chain another transform.
@@ -106,22 +115,29 @@ public struct MappedScan<Model: DynamoModel, Output: Sendable>: Sendable {
     let input: ScanInput<Model>
     let transform: @Sendable (Model) -> Output
 
-    public func execute(using client: any DynamoClient) async throws -> QueryPage<Output> {
-        try await input.execute(using: client).map(transform)
+    public func execute(
+        using client: any DynamoClient,
+        logger: Logger
+    ) async throws -> QueryPage<Output> {
+        try await input.execute(using: client, logger: logger).map(transform)
     }
 
     public func pages(
-        using client: any DynamoClient
+        using client: any DynamoClient,
+        logger: Logger
     ) -> MappedPageSequence<Model, Output, ScanPageSequence<Model>> {
-        MappedPageSequence(base: input.pages(using: client), transform: transform)
+        MappedPageSequence(base: input.pages(using: client, logger: logger), transform: transform)
     }
 
-    public func executeAll(using client: any DynamoClient) async throws -> [Output] {
-        try await input.executeAll(using: client).map(transform)
+    public func executeAll(
+        using client: any DynamoClient,
+        logger: Logger
+    ) async throws -> [Output] {
+        try await input.executeAll(using: client, logger: logger).map(transform)
     }
 
-    public func count(using client: any DynamoClient) async throws -> Int {
-        try await input.count(using: client)
+    public func count(using client: any DynamoClient, logger: Logger) async throws -> Int {
+        try await input.count(using: client, logger: logger)
     }
 
     public func map<Next: Sendable>(
@@ -148,8 +164,8 @@ public struct MappedBatchGet<Model: DynamoModel, Output: Sendable>: Sendable {
     let input: BatchGetInput<Model>
     let transform: @Sendable (Model) -> Output
 
-    public func execute(using client: any DynamoClient) async throws -> [Output] {
-        try await input.execute(using: client).map(transform)
+    public func execute(using client: any DynamoClient, logger: Logger) async throws -> [Output] {
+        try await input.execute(using: client, logger: logger).map(transform)
     }
 
     public func map<Next: Sendable>(
@@ -177,8 +193,11 @@ public struct MappedUpdateReturning<Model: DynamoModel, Output: Sendable>: Senda
     let input: UpdateReturning<Model>
     let transform: @Sendable (Model) -> Output
 
-    public func execute(using client: any DynamoClient) async throws -> Output? {
-        try await input.execute(using: client).map(transform)
+    public func execute(
+        using client: any DynamoClient,
+        logger: Logger = .dynamoQueriesDisabled
+    ) async throws -> Output? {
+        try await input.execute(using: client, logger: logger).map(transform)
     }
 
     public func map<Next: Sendable>(

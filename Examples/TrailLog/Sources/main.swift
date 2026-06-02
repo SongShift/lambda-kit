@@ -24,18 +24,24 @@ actor FakeDynamoClient: DynamoClient {
             .joined(separator: "|")
     }
 
-    func execute<Model: DynamoModel>(_ input: QueryInput<Model>) async throws -> QueryPage<Model> {
+    func execute<Model: DynamoModel>(
+        _ input: QueryInput<Model>,
+        logger _: Logger
+    ) async throws -> QueryPage<Model> {
         QueryPage(items: [], nextToken: nil)
     }
 
-    func getItem<Model: DynamoModel>(_ input: GetItemInput<Model>) async throws -> Model? {
+    func getItem<Model: DynamoModel>(
+        _ input: GetItemInput<Model>,
+        logger _: Logger
+    ) async throws -> Model? {
         guard let table = items[input.tableName],
               let data = table[Self.keyString(input.key)]
         else { return nil }
         return try JSONDecoder().decode(Model.self, from: data)
     }
 
-    func putItem<Model: DynamoModel>(_ input: PutItemInput<Model>) async throws {
+    func putItem<Model: DynamoModel>(_ input: PutItemInput<Model>, logger _: Logger) async throws {
         let data = try JSONEncoder().encode(input.item)
         let key: [String: DynamoValue] = [
             Model._table.partitionKey: .string(extractPK(of: input.item))
@@ -43,23 +49,30 @@ actor FakeDynamoClient: DynamoClient {
         items[input.tableName, default: [:]][Self.keyString(key)] = data
     }
 
-    func updateItem<Model: DynamoModel>(_ input: UpdateInput<Model>) async throws {}
-    func updateItemReturning<Model: DynamoModel>(_ input: UpdateReturning<Model>) async throws -> Model? { nil }
-    func deleteItem<Model: DynamoModel>(_ input: DeleteItemInput<Model>) async throws {}
-    func scan<Model: DynamoModel>(_ input: ScanInput<Model>) async throws -> QueryPage<Model> {
+    func updateItem<Model: DynamoModel>(_ input: UpdateInput<Model>, logger _: Logger) async throws {}
+    func updateItemReturning<Model: DynamoModel>(
+        _ input: UpdateReturning<Model>,
+        logger _: Logger
+    ) async throws -> Model? { nil }
+    func deleteItem<Model: DynamoModel>(_ input: DeleteItemInput<Model>, logger _: Logger) async throws {}
+    func scan<Model: DynamoModel>(
+        _ input: ScanInput<Model>,
+        logger _: Logger
+    ) async throws -> QueryPage<Model> {
         QueryPage(items: [], nextToken: nil)
     }
-    func count<Model: DynamoModel>(_ input: QueryInput<Model>) async throws -> CountPage {
+    func count<Model: DynamoModel>(_ input: QueryInput<Model>, logger _: Logger) async throws -> CountPage {
         CountPage(count: 0, scannedCount: 0, nextToken: nil)
     }
-    func count<Model: DynamoModel>(_ input: ScanInput<Model>) async throws -> CountPage {
+    func count<Model: DynamoModel>(_ input: ScanInput<Model>, logger _: Logger) async throws -> CountPage {
         CountPage(count: 0, scannedCount: 0, nextToken: nil)
     }
-    func batchGet<Model: DynamoModel>(_ input: BatchGetInput<Model>) async throws -> [Model] { [] }
-    func batchWrite<Model: DynamoModel>(_ input: BatchWriteInput<Model>) async throws {}
-    func transactWrite(_ items: [TransactWriteItem]) async throws {}
+    func batchGet<Model: DynamoModel>(_ input: BatchGetInput<Model>, logger _: Logger) async throws -> [Model] { [] }
+    func batchWrite<Model: DynamoModel>(_ input: BatchWriteInput<Model>, logger _: Logger) async throws {}
+    func transactWrite(_ items: [TransactWriteItem], logger _: Logger) async throws {}
     func transactGet(
-        _ items: [TransactGetItem]
+        _ items: [TransactGetItem],
+        logger _: Logger
     ) async throws -> [(any DynamoModel)?] {
         items.map { _ in nil }
     }

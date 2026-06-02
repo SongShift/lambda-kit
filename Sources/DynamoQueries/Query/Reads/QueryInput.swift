@@ -1,3 +1,5 @@
+import Logging
+
 /// A compiled DynamoDB Query request, parameterized by the model it returns.
 ///
 /// `QueryInput` is built by `Model.query { Key { ... } }` and configured
@@ -114,9 +116,13 @@ extension QueryInput {
 // MARK: - Execute
 
 extension QueryInput {
-    /// Run a single page of the query.
-    public func execute(using client: any DynamoClient) async throws -> QueryPage<Model> {
-        try await client.execute(self)
+    /// Run a single page of the query. The bare `execute(using:)` form (logging
+    /// disabled) comes from the `PagedRead` protocol extension.
+    public func execute(
+        using client: any DynamoClient,
+        logger: Logger
+    ) async throws -> QueryPage<Model> {
+        try await client.execute(self, logger: logger)
     }
 
     /// Stream the query as an `AsyncSequence` of pages. Each `next()` fires
@@ -127,16 +133,22 @@ extension QueryInput {
     ///     for try await page in MyModel.query { Key { ... } }.pages(using: client) {
     ///         for item in page.items { ... }
     ///     }
-    public func pages(using client: any DynamoClient) -> QueryPageSequence<Model> {
-        QueryPageSequence(input: self, client: client)
+    public func pages(
+        using client: any DynamoClient,
+        logger: Logger
+    ) -> QueryPageSequence<Model> {
+        QueryPageSequence(input: self, client: client, logger: logger)
     }
 
     /// Run the query and transparently paginate through every page, returning
     /// a flat array. Buffers every item in memory; for unbounded result sets
     /// reach for `pages(using:)` instead and process page-by-page.
-    public func executeAll(using client: any DynamoClient) async throws -> [Model] {
+    public func executeAll(
+        using client: any DynamoClient,
+        logger: Logger
+    ) async throws -> [Model] {
         var allItems: [Model] = []
-        for try await page in pages(using: client) {
+        for try await page in pages(using: client, logger: logger) {
             allItems.append(contentsOf: page.items)
         }
         return allItems
@@ -147,14 +159,17 @@ extension QueryInput {
     /// than `executeAll(...).count` because no item bytes cross the wire,
     /// though DynamoDB still bills the same RCU for items the filter looked
     /// at (if any).
-    public func count(using client: any DynamoClient) async throws -> Int {
+    public func count(
+        using client: any DynamoClient,
+        logger: Logger
+    ) async throws -> Int {
         var input = self
         input.selectCountOnly = true
         var total = 0
         var token: PaginationToken? = nil
         repeat {
             input.exclusiveStartKey = token?.key
-            let page = try await client.count(input)
+            let page = try await client.count(input, logger: logger)
             total += page.count
             token = page.nextToken
         } while token != nil
@@ -171,19 +186,21 @@ public struct QueryPageSequence<Model: DynamoModel>: AsyncSequence {
 
     let input: QueryInput<Model>
     let client: any DynamoClient
+    let logger: Logger
 
     public func makeAsyncIterator() -> AsyncIterator {
-        AsyncIterator(input: input, client: client)
+        AsyncIterator(input: input, client: client, logger: logger)
     }
 
     public struct AsyncIterator: AsyncIteratorProtocol {
         var input: QueryInput<Model>
         let client: any DynamoClient
+        let logger: Logger
         var finished = false
 
         public mutating func next() async throws -> QueryPage<Model>? {
             if finished { return nil }
-            let page = try await client.execute(input)
+            let page = try await client.execute(input, logger: logger)
             if let token = page.nextToken {
                 input = input.startToken(token)
             } else {

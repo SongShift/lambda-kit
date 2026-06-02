@@ -1,4 +1,5 @@
 import DynamoQueries
+import Logging
 
 /// A programmable `DynamoClient` test double: a **stub + spy**. It never talks
 /// to DynamoDB; instead it:
@@ -81,7 +82,8 @@ public actor RecordingDynamoClient: DynamoClient {
     // MARK: - DynamoClient
 
     public func execute<Model: DynamoModel>(
-        _ input: QueryInput<Model>
+        _ input: QueryInput<Model>,
+        logger _: Logger
     ) async throws -> QueryPage<Model> {
         log(input)
         queryInputs[ObjectIdentifier(Model.self), default: []].append(input)
@@ -89,7 +91,8 @@ public actor RecordingDynamoClient: DynamoClient {
     }
 
     public func getItem<Model: DynamoModel>(
-        _ input: GetItemInput<Model>
+        _ input: GetItemInput<Model>,
+        logger _: Logger
     ) async throws -> Model? {
         log(input)
         getInputs[ObjectIdentifier(Model.self)] = input
@@ -97,7 +100,8 @@ public actor RecordingDynamoClient: DynamoClient {
     }
 
     public func putItem<Model: DynamoModel>(
-        _ input: PutItemInput<Model>
+        _ input: PutItemInput<Model>,
+        logger _: Logger
     ) async throws {
         log(input)
         putInputs[ObjectIdentifier(Model.self)] = input
@@ -105,7 +109,8 @@ public actor RecordingDynamoClient: DynamoClient {
     }
 
     public func updateItem<Model: DynamoModel>(
-        _ input: UpdateInput<Model>
+        _ input: UpdateInput<Model>,
+        logger _: Logger
     ) async throws {
         log(input)
         updateInputs[ObjectIdentifier(Model.self)] = input
@@ -113,7 +118,8 @@ public actor RecordingDynamoClient: DynamoClient {
     }
 
     public func updateItemReturning<Model: DynamoModel>(
-        _ input: UpdateReturning<Model>
+        _ input: UpdateReturning<Model>,
+        logger _: Logger
     ) async throws -> Model? {
         log(input)
         updateReturningInputs[ObjectIdentifier(Model.self)] = input
@@ -122,7 +128,8 @@ public actor RecordingDynamoClient: DynamoClient {
     }
 
     public func deleteItem<Model: DynamoModel>(
-        _ input: DeleteItemInput<Model>
+        _ input: DeleteItemInput<Model>,
+        logger _: Logger
     ) async throws {
         log(input)
         deleteInputs[ObjectIdentifier(Model.self)] = input
@@ -130,7 +137,8 @@ public actor RecordingDynamoClient: DynamoClient {
     }
 
     public func scan<Model: DynamoModel>(
-        _ input: ScanInput<Model>
+        _ input: ScanInput<Model>,
+        logger _: Logger
     ) async throws -> QueryPage<Model> {
         log(input)
         scanInputs[ObjectIdentifier(Model.self), default: []].append(input)
@@ -138,7 +146,8 @@ public actor RecordingDynamoClient: DynamoClient {
     }
 
     public func count<Model: DynamoModel>(
-        _ input: QueryInput<Model>
+        _ input: QueryInput<Model>,
+        logger _: Logger
     ) async throws -> CountPage {
         log(input)
         countQueryInputs[ObjectIdentifier(Model.self), default: []].append(input)
@@ -146,7 +155,8 @@ public actor RecordingDynamoClient: DynamoClient {
     }
 
     public func count<Model: DynamoModel>(
-        _ input: ScanInput<Model>
+        _ input: ScanInput<Model>,
+        logger _: Logger
     ) async throws -> CountPage {
         log(input)
         countScanInputs[ObjectIdentifier(Model.self), default: []].append(input)
@@ -154,7 +164,8 @@ public actor RecordingDynamoClient: DynamoClient {
     }
 
     public func batchGet<Model: DynamoModel>(
-        _ input: BatchGetInput<Model>
+        _ input: BatchGetInput<Model>,
+        logger _: Logger
     ) async throws -> [Model] {
         log(input)
         batchGetInputs[ObjectIdentifier(Model.self)] = input
@@ -162,13 +173,14 @@ public actor RecordingDynamoClient: DynamoClient {
     }
 
     public func batchWrite<Model: DynamoModel>(
-        _ input: BatchWriteInput<Model>
+        _ input: BatchWriteInput<Model>,
+        logger _: Logger
     ) async throws {
         log(input)
         batchWriteInputs[ObjectIdentifier(Model.self)] = input
     }
 
-    public func transactWrite(_ items: [TransactWriteItem]) async throws {
+    public func transactWrite(_ items: [TransactWriteItem], logger _: Logger) async throws {
         requestLog.append("TransactWrite legs=\(items.count) tables=\(items.map(\.tableName))")
         lastTransactWriteItems = items
         if let error = transactWriteError {
@@ -178,7 +190,8 @@ public actor RecordingDynamoClient: DynamoClient {
     }
 
     public func transactGet(
-        _ items: [TransactGetItem]
+        _ items: [TransactGetItem],
+        logger _: Logger
     ) async throws -> [(any DynamoModel)?] {
         requestLog.append("TransactGet legs=\(items.count) tables=\(items.map(\.tableName))")
         lastTransactGetItems = items

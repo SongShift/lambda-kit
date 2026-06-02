@@ -1,3 +1,5 @@
+import Logging
+
 /// A delete request for a single item, addressed by primary key. Optionally
 /// guarded by a condition expression. The delete only fires if the
 /// condition holds.
@@ -44,8 +46,11 @@ extension DeleteItemInput {
 // MARK: - Execute
 
 extension DeleteItemInput {
-    public func execute(using client: any DynamoClient) async throws {
-        try await client.deleteItem(self)
+    public func execute(
+        using client: any DynamoClient,
+        logger: Logger = .dynamoQueriesDisabled
+    ) async throws {
+        try await client.deleteItem(self, logger: logger)
     }
 }
 

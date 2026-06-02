@@ -1,3 +1,5 @@
+import Logging
+
 /// A multi-key read against a single table. Up to 100 keys per DynamoDB
 /// request, 16MB total per response. Adapters auto-retry the
 /// `UnprocessedKeys` portion of every response until the remainder is empty.
@@ -48,8 +50,13 @@ extension BatchGetInput {
 extension BatchGetInput {
     /// Run the batch get. Returns the decoded items found, in no guaranteed
     /// order (DynamoDB doesn't promise response ordering for batch reads).
-    public func execute(using client: any DynamoClient) async throws -> [Model] {
-        try await client.batchGet(self)
+    /// Run the batch get. The bare `execute(using:)` form (logging disabled)
+    /// comes from the `BatchRead` protocol extension.
+    public func execute(
+        using client: any DynamoClient,
+        logger: Logger
+    ) async throws -> [Model] {
+        try await client.batchGet(self, logger: logger)
     }
 }
 

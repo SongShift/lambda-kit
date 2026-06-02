@@ -1,3 +1,5 @@
+import Logging
+
 /// A single-item lookup keyed by primary key, parameterized by the model it
 /// returns.
 ///
@@ -50,8 +52,11 @@ extension GetItemInput {
 // MARK: - Execute
 
 extension GetItemInput {
-    public func execute(using client: any DynamoClient) async throws -> Model? {
-        try await client.getItem(self)
+    public func execute(
+        using client: any DynamoClient,
+        logger: Logger = .dynamoQueriesDisabled
+    ) async throws -> Model? {
+        try await client.getItem(self, logger: logger)
     }
 }
 

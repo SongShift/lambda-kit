@@ -1,3 +1,5 @@
+import Logging
+
 /// Thrown by `TransactWriteInput.execute(using:)` when DynamoDB cancels the
 /// whole transaction. Reports the per-leg cancellation reasons in the same
 /// order as the items the user submitted, so `cancellations[i]` describes
@@ -256,8 +258,11 @@ public enum TransactWriteBuilder {
 // MARK: - Execute
 
 extension TransactWriteInput {
-    public func execute(using client: any DynamoClient) async throws {
-        try await client.transactWrite(items)
+    public func execute(
+        using client: any DynamoClient,
+        logger: Logger = .dynamoQueriesDisabled
+    ) async throws {
+        try await client.transactWrite(items, logger: logger)
     }
 }
 
