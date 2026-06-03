@@ -176,3 +176,108 @@ extension BatchWriteInput: RenderableRequest {
         ])
     }
 }
+
+extension TransactWriteInput: RenderableRequest {
+    public var renderedRequest: String {
+        var lines = ["TransactWrite"]
+        for (index, item) in items.enumerated() {
+            lines.append(item.renderedRequest(index: index))
+        }
+        return lines.joined(separator: "\n")
+    }
+}
+
+extension TransactGetInput: RenderableRequest {
+    public var renderedRequest: String {
+        var items: [TransactGetItem] = []
+        repeat items.append((each legs).transactGetItem)
+
+        var lines = ["TransactGet"]
+        for (index, item) in items.enumerated() {
+            lines.append(item.renderedRequest(index: index))
+        }
+        return lines.joined(separator: "\n")
+    }
+}
+
+private extension TransactWriteItem {
+    func renderedRequest(index: Int) -> String {
+        switch kind {
+        case let .put(item, condition):
+            return renderTransactionLines(
+                "[\(index)] Put \(tableName)",
+                [
+                    ("item", RequestRender.item(item)),
+                    ("condition", condition?.expression),
+                    ("names", condition?.renderedNames),
+                    ("values", condition?.renderedValues),
+                ]
+            )
+
+        case let .update(key, updateExpression, condition, names, values):
+            return renderTransactionLines(
+                "[\(index)] Update \(tableName)",
+                [
+                    ("key", RequestRender.valueMap(key)),
+                    ("update", updateExpression),
+                    ("condition", condition?.expression),
+                    ("names", !names.isEmpty ? RequestRender.nameMap(names) : nil),
+                    ("values", !values.isEmpty ? RequestRender.valueMap(values) : nil),
+                ]
+            )
+
+        case let .delete(key, condition):
+            return renderTransactionLines(
+                "[\(index)] Delete \(tableName)",
+                [
+                    ("key", RequestRender.valueMap(key)),
+                    ("condition", condition?.expression),
+                    ("names", condition?.renderedNames),
+                    ("values", condition?.renderedValues),
+                ]
+            )
+
+        case let .conditionCheck(key, condition):
+            return renderTransactionLines(
+                "[\(index)] ConditionCheck \(tableName)",
+                [
+                    ("key", RequestRender.valueMap(key)),
+                    ("condition", condition.expression),
+                    ("names", condition.renderedNames),
+                    ("values", condition.renderedValues),
+                ]
+            )
+        }
+    }
+}
+
+private extension TransactGetItem {
+    func renderedRequest(index: Int) -> String {
+        renderTransactionLines(
+            "[\(index)] Get \(tableName)",
+            [
+                ("key", RequestRender.valueMap(key)),
+                ("project", projectionAttributes.map { $0.joined(separator: ", ") }),
+            ]
+        )
+    }
+}
+
+private extension TransactWriteItem.Condition {
+    var renderedNames: String? {
+        attributeNames.isEmpty ? nil : RequestRender.nameMap(attributeNames)
+    }
+
+    var renderedValues: String? {
+        attributeValues.isEmpty ? nil : RequestRender.valueMap(attributeValues)
+    }
+}
+
+private func renderTransactionLines(_ header: String, _ fields: [(String, String?)]) -> String {
+    var output = "  " + header
+    for (label, value) in fields {
+        guard let value, !value.isEmpty else { continue }
+        output += "\n    \(label): \(value)"
+    }
+    return output
+}
