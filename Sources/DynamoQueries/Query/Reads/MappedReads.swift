@@ -32,7 +32,7 @@ public struct MappedPageSequence<
     public typealias Element = QueryPage<Output>
 
     let base: Base
-    let transform: @Sendable (Model) -> Output
+    let transform: @Sendable (Model) throws -> Output
 
     public func makeAsyncIterator() -> AsyncIterator {
         AsyncIterator(base: base.makeAsyncIterator(), transform: transform)
@@ -40,11 +40,11 @@ public struct MappedPageSequence<
 
     public struct AsyncIterator: AsyncIteratorProtocol {
         var base: Base.AsyncIterator
-        let transform: @Sendable (Model) -> Output
+        let transform: @Sendable (Model) throws -> Output
 
         public mutating func next() async throws -> QueryPage<Output>? {
             guard let page = try await base.next() else { return nil }
-            return page.map(transform)
+            return try page.map(transform)
         }
     }
 }
@@ -56,7 +56,7 @@ public struct MappedPageSequence<
 /// each yielding `Output` instead of `Model`.
 public struct MappedQuery<Model: DynamoModel, Output: Sendable>: Sendable {
     let input: QueryInput<Model>
-    let transform: @Sendable (Model) -> Output
+    let transform: @Sendable (Model) throws -> Output
 
     /// One page, items transformed.
     public func execute(
@@ -90,9 +90,9 @@ public struct MappedQuery<Model: DynamoModel, Output: Sendable>: Sendable {
 
     /// Chain another transform.
     public func map<Next: Sendable>(
-        _ next: @Sendable @escaping (Output) -> Next
+        _ next: @Sendable @escaping (Output) throws -> Next
     ) -> MappedQuery<Model, Next> {
-        MappedQuery<Model, Next>(input: input) { next(self.transform($0)) }
+        MappedQuery<Model, Next>(input: input) { try next(self.transform($0)) }
     }
 }
 
@@ -101,7 +101,7 @@ extension QueryInput {
     /// the full query terminal surface (`execute` / `pages` / `executeAll` /
     /// `count`), yielding the mapped type.
     public func map<Output: Sendable>(
-        _ transform: @Sendable @escaping (Model) -> Output
+        _ transform: @Sendable @escaping (Model) throws -> Output
     ) -> MappedQuery<Model, Output> {
         MappedQuery(input: self, transform: transform)
     }
@@ -113,7 +113,7 @@ extension QueryInput {
 /// as `ScanInput`, yielding `Output`.
 public struct MappedScan<Model: DynamoModel, Output: Sendable>: Sendable {
     let input: ScanInput<Model>
-    let transform: @Sendable (Model) -> Output
+    let transform: @Sendable (Model) throws -> Output
 
     public func execute(
         using client: any DynamoClient,
@@ -141,15 +141,15 @@ public struct MappedScan<Model: DynamoModel, Output: Sendable>: Sendable {
     }
 
     public func map<Next: Sendable>(
-        _ next: @Sendable @escaping (Output) -> Next
+        _ next: @Sendable @escaping (Output) throws -> Next
     ) -> MappedScan<Model, Next> {
-        MappedScan<Model, Next>(input: input) { next(self.transform($0)) }
+        MappedScan<Model, Next>(input: input) { try next(self.transform($0)) }
     }
 }
 
 extension ScanInput {
     public func map<Output: Sendable>(
-        _ transform: @Sendable @escaping (Model) -> Output
+        _ transform: @Sendable @escaping (Model) throws -> Output
     ) -> MappedScan<Model, Output> {
         MappedScan(input: self, transform: transform)
     }
@@ -162,23 +162,23 @@ extension ScanInput {
 /// no guaranteed order).
 public struct MappedBatchGet<Model: DynamoModel, Output: Sendable>: Sendable {
     let input: BatchGetInput<Model>
-    let transform: @Sendable (Model) -> Output
+    let transform: @Sendable (Model) throws -> Output
 
     public func execute(using client: any DynamoClient, logger: Logger) async throws -> [Output] {
         try await input.execute(using: client, logger: logger).map(transform)
     }
 
     public func map<Next: Sendable>(
-        _ next: @Sendable @escaping (Output) -> Next
+        _ next: @Sendable @escaping (Output) throws -> Next
     ) -> MappedBatchGet<Model, Next> {
-        MappedBatchGet<Model, Next>(input: input) { next(self.transform($0)) }
+        MappedBatchGet<Model, Next>(input: input) { try next(self.transform($0)) }
     }
 }
 
 extension BatchGetInput {
     /// Transform every found item before delivery.
     public func map<Output: Sendable>(
-        _ transform: @Sendable @escaping (Model) -> Output
+        _ transform: @Sendable @escaping (Model) throws -> Output
     ) -> MappedBatchGet<Model, Output> {
         MappedBatchGet(input: self, transform: transform)
     }
@@ -191,7 +191,7 @@ extension BatchGetInput {
 /// for the chosen `returnValues` mode.
 public struct MappedUpdateReturning<Model: DynamoModel, Output: Sendable>: Sendable {
     let input: UpdateReturning<Model>
-    let transform: @Sendable (Model) -> Output
+    let transform: @Sendable (Model) throws -> Output
 
     public func execute(
         using client: any DynamoClient,
@@ -201,15 +201,15 @@ public struct MappedUpdateReturning<Model: DynamoModel, Output: Sendable>: Senda
     }
 
     public func map<Next: Sendable>(
-        _ next: @Sendable @escaping (Output) -> Next
+        _ next: @Sendable @escaping (Output) throws -> Next
     ) -> MappedUpdateReturning<Model, Next> {
-        MappedUpdateReturning<Model, Next>(input: input) { next(self.transform($0)) }
+        MappedUpdateReturning<Model, Next>(input: input) { try next(self.transform($0)) }
     }
 }
 
 extension UpdateReturning {
     public func map<Output: Sendable>(
-        _ transform: @Sendable @escaping (Model) -> Output
+        _ transform: @Sendable @escaping (Model) throws -> Output
     ) -> MappedUpdateReturning<Model, Output> {
         MappedUpdateReturning(input: self, transform: transform)
     }

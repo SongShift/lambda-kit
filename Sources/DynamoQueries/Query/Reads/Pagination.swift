@@ -74,9 +74,9 @@ public struct QueryPage<Item: Sendable>: Sendable {
     }
 
     public func map<Output: Sendable>(
-        _ transform: (Item) -> Output
-    ) -> QueryPage<Output> {
-        QueryPage<Output>(items: items.map(transform), nextToken: nextToken)
+        _ transform: (Item) throws -> Output
+    ) rethrows -> QueryPage<Output> {
+        QueryPage<Output>(items: try items.map(transform), nextToken: nextToken)
     }
 }
 

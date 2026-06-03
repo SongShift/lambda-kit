@@ -15,8 +15,10 @@ public protocol Read<Output>: Sendable {
     var getItemInput: GetItemInput<Storage> { get }
 
     /// Convert a decoded storage item into the delivered output. Called only
-    /// for a present item. A missing key never reaches here.
-    func transform(_ storage: Storage) -> Output
+    /// for a present item. A missing key never reaches here. May throw when
+    /// the stored item fails domain validation; the error propagates out of
+    /// the executing terminal.
+    func transform(_ storage: Storage) throws -> Output
 }
 
 extension Read {
@@ -88,32 +90,33 @@ extension GetItemInput: Read {
 /// via `execute(using:)`.
 public struct MappedGet<Storage: DynamoModel, Output: Sendable>: Read {
     public let getItemInput: GetItemInput<Storage>
-    private let _transform: @Sendable (Storage) -> Output
+    private let _transform: @Sendable (Storage) throws -> Output
 
     init(
         getItemInput: GetItemInput<Storage>,
-        transform: @Sendable @escaping (Storage) -> Output
+        transform: @Sendable @escaping (Storage) throws -> Output
     ) {
         self.getItemInput = getItemInput
         self._transform = transform
     }
 
-    public func transform(_ storage: Storage) -> Output { _transform(storage) }
+    public func transform(_ storage: Storage) throws -> Output { try _transform(storage) }
 
     /// Chain another transform.
     public func map<Next: Sendable>(
-        _ next: @Sendable @escaping (Output) -> Next
+        _ next: @Sendable @escaping (Output) throws -> Next
     ) -> MappedGet<Storage, Next> {
-        MappedGet<Storage, Next>(getItemInput: getItemInput) { next(self._transform($0)) }
+        MappedGet<Storage, Next>(getItemInput: getItemInput) { try next(self._transform($0)) }
     }
 }
 
 extension GetItemInput {
     /// Transform the item (if found) before delivery. Returns a `MappedGet`
     /// leg, usable both standalone and inside a `TransactGet { ... }` block.
-    /// The closure is not called for a missing key.
+    /// The closure is not called for a missing key. A throwing transform
+    /// propagates its error out of the executing terminal.
     public func map<Output: Sendable>(
-        _ transform: @Sendable @escaping (Model) -> Output
+        _ transform: @Sendable @escaping (Model) throws -> Output
     ) -> MappedGet<Model, Output> {
         MappedGet(getItemInput: self, transform: transform)
     }
@@ -182,14 +185,14 @@ extension TransactGetInput {
         let raws = try await client.transactGet(items, logger: logger)
 
         var index = 0
-        func decodeNext<L: Read>(_ leg: L) -> L.Output? {
+        func decodeNext<L: Read>(_ leg: L) throws -> L.Output? {
             defer { index += 1 }
             guard index < raws.count, let storage = raws[index] as? L.Storage else {
                 return nil
             }
-            return leg.transform(storage)
+            return try leg.transform(storage)
         }
-        return (repeat decodeNext(each legs))
+        return (repeat try decodeNext(each legs))
     }
 }
 
