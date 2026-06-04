@@ -727,8 +727,10 @@ extension DynamoValue {
 
 extension DynamoDB.AttributeValue {
     /// Reverse of `DynamoValue.toSotoAttributeValue()`. Used to lift
-    /// `LastEvaluatedKey` back into a `PaginationToken`.
-    func toDynamoValue() -> DynamoValue {
+    /// `LastEvaluatedKey` back into a `PaginationToken`, and public so
+    /// consumer-declared `DynamoExpressionRepresentation`s can bridge values
+    /// encoded with Soto's `DynamoDBEncoder` into the query DSL.
+    public func toDynamoValue() -> DynamoValue {
         switch self {
         case .s(let string): return .string(string)
         case .n(let number): return .number(number)

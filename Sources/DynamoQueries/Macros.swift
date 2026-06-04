@@ -70,7 +70,7 @@ public macro Attribute(_ name: String) = #externalMacro(module: "DynamoQueriesMa
 ///     @Table("Lockers")
 ///     struct Locker: Codable {
 ///         @PartitionKey var id: String
-///         @ExpressionValue(as: SotoExpressionEncoder<[Int: GearSlot]>.self)
+///         @ExpressionValue(as: GearSlotMapEncoder.self)
 ///         var slots: [Int: GearSlot]
 ///     }
 ///

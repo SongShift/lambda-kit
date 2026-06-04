@@ -3,12 +3,17 @@
 /// `DynamoEncodable` directly — nested `Codable` structs, non-string-keyed
 /// dictionaries, JSON blobs.
 ///
-/// Declared per column at the schema level via `@ExpressionValue(as:)`:
+/// The library ships only this seam — conformances are declared by the
+/// consumer, next to the schema that owns the type:
+///
+///     enum GearSlotMapEncoder: DynamoExpressionRepresentation {
+///         static func encode(_ value: [Int: GearSlot]) throws -> DynamoValue { ... }
+///     }
 ///
 ///     @Table("Lockers")
 ///     struct Locker: Codable {
 ///         @PartitionKey var id: String
-///         @ExpressionValue(as: SotoExpressionEncoder<[Int: GearSlot]>.self)
+///         @ExpressionValue(as: GearSlotMapEncoder.self)
 ///         var slots: [Int: GearSlot]
 ///     }
 ///
@@ -19,18 +24,15 @@
 ///         try $0.slots.set(to: slots)
 ///     }
 ///
-/// Unlike `DynamoEncodable.toDynamoValue()`, conversion is throwing — the
-/// canonical representation bridges through `Codable`, which can fail.
+/// Unlike `DynamoEncodable.toDynamoValue()`, conversion is throwing —
+/// representations that bridge through `Codable` can fail.
 ///
 /// Representations don't govern full-item puts or reads: those go through
 /// the model's own `Codable` conformance. A representation must produce the
 /// same wire format the model's `encode(to:)` does for that property, or
-/// `set` and `put` will disagree about what's stored. `SotoExpressionEncoder` (in
-/// the Soto adapter) satisfies this by construction, by using the same
-/// encoder as the put path.
-/// Encoding is the only requirement: representations feed values *into*
-/// expressions, and reads never route through them, so there is nothing for
-/// the library to decode.
+/// `set` and `put` will disagree about what's stored. Encoding is the only
+/// requirement: representations feed values *into* expressions, and reads
+/// never route through them, so there is nothing for the library to decode.
 public protocol DynamoExpressionRepresentation: Sendable {
     associatedtype Value
 

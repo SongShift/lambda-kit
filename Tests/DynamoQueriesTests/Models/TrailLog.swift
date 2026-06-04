@@ -134,13 +134,28 @@ public struct GearSlot: Codable, Equatable, Sendable {
     public var weight: Double
 }
 
+/// Consumer-declared representation: the library ships only the
+/// `DynamoExpressionRepresentation` seam; encodings for specific types live
+/// with the schema that owns them and must match what the model's `Codable`
+/// conformance writes on puts.
+public enum GearSlotMapEncoder: DynamoExpressionRepresentation {
+    public static func encode(_ value: [Int: GearSlot]) throws -> DynamoValue {
+        .map(.init(uniqueKeysWithValues: value.map { key, slot in
+            (String(key), DynamoValue.map([
+                "label": .string(slot.label),
+                "weight": .number(String(slot.weight)),
+            ]))
+        }))
+    }
+}
+
 @Table("TrailGearLockers")
 public struct GearLocker: Codable {
     @PartitionKey
     public var hikerId: String
     // `[Int: GearSlot]` can't be DynamoEncodable (non-string keys, plain
-    // Codable value type), so the column declares a Codable representation.
-    @ExpressionValue(as: SotoExpressionEncoder<[Int: GearSlot]>.self)
+    // Codable value type), so the column declares a representation.
+    @ExpressionValue(as: GearSlotMapEncoder.self)
     public var slots: [Int: GearSlot] = [:]
     public var capacity: Int = 0
 }
