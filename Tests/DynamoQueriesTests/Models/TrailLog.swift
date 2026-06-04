@@ -127,6 +127,24 @@ public struct HikerHandle: Codable {
     public var hikerId: String
 }
 
+// MARK: - GearLocker (represented column via @ExpressionValue(as:))
+
+public struct GearSlot: Codable, Equatable, Sendable {
+    public var label: String
+    public var weight: Double
+}
+
+@Table("TrailGearLockers")
+public struct GearLocker: Codable {
+    @PartitionKey
+    public var hikerId: String
+    // `[Int: GearSlot]` can't be DynamoEncodable (non-string keys, plain
+    // Codable value type), so the column declares a Codable representation.
+    @ExpressionValue(as: SotoExpressionEncoder<[Int: GearSlot]>.self)
+    public var slots: [Int: GearSlot] = [:]
+    public var capacity: Int = 0
+}
+
 // MARK: - PendingHikeBatch (scan target)
 
 @Table("TrailPendingHikeBatches")
