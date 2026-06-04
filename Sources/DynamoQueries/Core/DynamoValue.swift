@@ -163,9 +163,21 @@ extension Array: DynamoEncodable where Element: DynamoEncodable {
     }
 }
 
-extension Dictionary: DynamoEncodable where Key == String, Value: DynamoEncodable {
+public protocol DynamoMapKey: Sendable {
+    var dynamoMapKey: String { get }
+}
+
+extension String: DynamoMapKey {
+    public var dynamoMapKey: String { self }
+}
+
+extension Int: DynamoMapKey {
+    public var dynamoMapKey: String { String(self) }
+}
+
+extension Dictionary: DynamoEncodable where Key: DynamoMapKey, Value: DynamoEncodable {
     public func toDynamoValue() -> DynamoValue {
-        .map(mapValues { $0.toDynamoValue() })
+        .map(.init(uniqueKeysWithValues: map { ($0.dynamoMapKey, $1.toDynamoValue()) }))
     }
 }
 

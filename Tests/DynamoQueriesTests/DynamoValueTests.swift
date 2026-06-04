@@ -136,6 +136,16 @@ struct DynamoEncodableTests {
         #expect(entries == ["a": .string("1"), "b": .string("2")])
     }
 
+    @Test("Dictionary<Int, String> encodes as a map with stringified keys")
+    func intKeyedDictionaryEncodesAsMap() {
+        let value: [Int: String] = [1: "a", 22: "b"]
+        guard case .map(let entries) = value.toDynamoValue() else {
+            Issue.record("expected .map")
+            return
+        }
+        #expect(entries == ["1": .string("a"), "22": .string("b")])
+    }
+
     @Test("Data encodes as binary")
     func dataEncodesAsBinary() {
         let value = Data([0xff, 0x00]).toDynamoValue()
