@@ -34,7 +34,9 @@ public struct TableMacro: ExtensionMacro {
         // Collect property metadata
         var partitionKeyName: String?
         var sortKeyName: String?
-        var properties: [(swiftName: String, dynamoName: String, typeName: String)] = []
+        var properties:
+            [(swiftName: String, dynamoName: String, typeName: String, representation: String?)] =
+                []
 
         for member in structDecl.memberBlock.members {
             guard let varDecl = member.decl.as(VariableDeclSyntax.self),
@@ -58,6 +60,25 @@ public struct TableMacro: ExtensionMacro {
                    let segment = literal.segments.first?.as(StringSegmentSyntax.self) {
                     dynamoName = segment.content.text
                     hasAttributeAnnotation = true
+                }
+            }
+
+            // Check for @ExpressionValue(as: SomeRepresentation.self)
+            var representation: String?
+            for attribute in varDecl.attributes {
+                guard let attributeSyntax = attribute.as(AttributeSyntax.self),
+                      attributeSyntax.attributeName.trimmedDescription == "ExpressionValue",
+                      let arguments = attributeSyntax.arguments?.as(LabeledExprListSyntax.self),
+                      let argument = arguments.first(where: { $0.label?.text == "as" })
+                else { continue }
+                // The argument is a metatype expression like `Rep<T>.self`;
+                // strip the `.self` to get the representation type name.
+                if let memberAccess = argument.expression.as(MemberAccessExprSyntax.self),
+                   memberAccess.declName.baseName.tokenKind == .keyword(.`self`),
+                   let base = memberAccess.base {
+                    representation = base.trimmedDescription
+                } else {
+                    throw DiagnosticError("@ExpressionValue(as:) argument must be a metatype literal like `MyRepresentation.self`")
                 }
             }
 
@@ -85,7 +106,18 @@ public struct TableMacro: ExtensionMacro {
                 if hasGetter && !isExplicitlyTagged { continue }
             }
 
-            properties.append((swiftName: swiftName, dynamoName: dynamoName, typeName: propertyType))
+            // Key values travel through `DynamoEncodable` in the generated
+            // get/update/delete factories; a representation would be ignored.
+            if representation != nil, isPartitionKey || isSortKey {
+                throw DiagnosticError("@ExpressionValue(as:) cannot be combined with @PartitionKey or @SortKey")
+            }
+
+            properties.append((
+                swiftName: swiftName,
+                dynamoName: dynamoName,
+                typeName: propertyType,
+                representation: representation
+            ))
         }
 
         guard let resolvedPartitionKey = partitionKeyName else {
@@ -139,16 +171,28 @@ public struct TableMacro: ExtensionMacro {
         // Build the extension source
         let sortKeyExpr = sortKeyName.map { "\"\($0)\"" } ?? "nil"
 
+        // `@ExpressionValue(as:)` properties surface as `RepresentedAttribute<Rep>`
+        // instead of `Attribute<Type>`, so their DSL ops encode through the
+        // declared representation.
+        func attributeType(_ property: (
+            swiftName: String, dynamoName: String, typeName: String, representation: String?
+        )) -> String {
+            if let representation = property.representation {
+                return "RepresentedAttribute<\(representation)>"
+            }
+            return "Attribute<\(property.typeName)>"
+        }
+
         let attributeDecls = properties.map { property in
-            "        \(accessLevel)static let \(property.swiftName) = Attribute<\(property.typeName)>(\"\(property.dynamoName)\")"
+            "        \(accessLevel)static let \(property.swiftName) = \(attributeType(property))(\"\(property.dynamoName)\")"
         }.joined(separator: "\n")
 
         let accessorDecls = properties.map { property in
-            "    \(accessLevel)static var $\(property.swiftName): Attribute<\(property.typeName)> { Attributes.\(property.swiftName) }"
+            "    \(accessLevel)static var $\(property.swiftName): \(attributeType(property)) { Attributes.\(property.swiftName) }"
         }.joined(separator: "\n")
 
         let columnDecls = properties.map { property in
-            "        \(accessLevel)let \(property.swiftName) = Attribute<\(property.typeName)>(\"\(property.dynamoName)\")"
+            "        \(accessLevel)let \(property.swiftName) = \(attributeType(property))(\"\(property.dynamoName)\")"
         }.joined(separator: "\n")
 
         // Key-shaped CRUD factories. The macro knows the table's key shape, so
@@ -171,10 +215,10 @@ public struct TableMacro: ExtensionMacro {
                 \(accessLevel)static func update(
                     partitionKey: some DynamoQueries.DynamoEncodable,
                     sortKey: some DynamoQueries.DynamoEncodable,
-                    @DynamoQueries.UpdateBuilder _ build: (Columns) -> [DynamoQueries.UpdateAction],
+                    @DynamoQueries.UpdateBuilder _ build: (Columns) throws -> [DynamoQueries.UpdateAction],
                     @DynamoQueries.ConditionBuilder where condition: (Columns) -> [DynamoQueries.Expression] = { _ in [] }
-                ) -> DynamoQueries.UpdateInput<\(typeName)> {
-                    DynamoQueries.UpdateInputBuilder.build(for: \(typeName).self, key: \(compositeKeyExpr), actions: build(columns), condition: condition(columns))
+                ) rethrows -> DynamoQueries.UpdateInput<\(typeName)> {
+                    DynamoQueries.UpdateInputBuilder.build(for: \(typeName).self, key: \(compositeKeyExpr), actions: try build(columns), condition: condition(columns))
                 }
 
                 \(accessLevel)static func delete(
@@ -195,10 +239,10 @@ public struct TableMacro: ExtensionMacro {
 
                 \(accessLevel)static func update(
                     partitionKey: some DynamoQueries.DynamoEncodable,
-                    @DynamoQueries.UpdateBuilder _ build: (Columns) -> [DynamoQueries.UpdateAction],
+                    @DynamoQueries.UpdateBuilder _ build: (Columns) throws -> [DynamoQueries.UpdateAction],
                     @DynamoQueries.ConditionBuilder where condition: (Columns) -> [DynamoQueries.Expression] = { _ in [] }
-                ) -> DynamoQueries.UpdateInput<\(typeName)> {
-                    DynamoQueries.UpdateInputBuilder.build(for: \(typeName).self, key: \(partitionKeyExpr), actions: build(columns), condition: condition(columns))
+                ) rethrows -> DynamoQueries.UpdateInput<\(typeName)> {
+                    DynamoQueries.UpdateInputBuilder.build(for: \(typeName).self, key: \(partitionKeyExpr), actions: try build(columns), condition: condition(columns))
                 }
 
                 \(accessLevel)static func delete(

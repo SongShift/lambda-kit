@@ -62,6 +62,34 @@ public macro SortKey() = #externalMacro(module: "DynamoQueriesMacros", type: "So
 @attached(peer)
 public macro Attribute(_ name: String) = #externalMacro(module: "DynamoQueriesMacros", type: "AttributeMacro")
 
+/// Declares how a property's values are encoded into DynamoDB *expression
+/// attribute values* (the `:v0` in `SET #n0 = :v0`), for types that can't
+/// conform to `DynamoEncodable` directly (nested `Codable` structs,
+/// non-string-keyed dictionaries, …).
+///
+///     @Table("Lockers")
+///     struct Locker: Codable {
+///         @PartitionKey var id: String
+///         @ExpressionValue(as: GearSlotMapEncoder.self)
+///         var slots: [Int: GearSlot]
+///     }
+///
+/// `@Table` generates the column as a ``RepresentedAttribute`` instead of an
+/// ``Attribute``, so update actions encode through the representation:
+///
+///     Locker.update(partitionKey: id) {
+///         try $0.slots.set(to: slots)
+///     }
+///
+/// The representation governs expression values only — it plays no part in
+/// decoding, and full-item puts and reads still go through the model's own
+/// `Codable` conformance, so the two must agree on the wire format.
+/// ``DynamoExpressionRepresentation`` documents the contract.
+@attached(peer)
+public macro ExpressionValue<R: DynamoExpressionRepresentation>(
+    as representation: R.Type
+) = #externalMacro(module: "DynamoQueriesMacros", type: "ExpressionValueMacro")
+
 /// Declares a secondary index on a `@Table` struct.
 ///
 /// Generates a typed `Indexes.<name>` static instance the query/scan APIs

@@ -8,6 +8,7 @@ struct DynamoKitMacrosPlugin: CompilerPlugin {
         PartitionKeyMacro.self,
         SortKeyMacro.self,
         AttributeMacro.self,
+        ExpressionValueMacro.self,
         IndexMacro.self,
     ]
 }

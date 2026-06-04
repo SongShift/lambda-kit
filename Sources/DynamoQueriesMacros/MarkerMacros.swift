@@ -34,6 +34,19 @@ public struct AttributeMacro: PeerMacro {
     }
 }
 
+/// Declares how a property's values encode into expression attribute values.
+/// Generates no code. Read by @Table, which emits a `RepresentedAttribute`
+/// for the property instead of an `Attribute`.
+public struct ExpressionValueMacro: PeerMacro {
+    public static func expansion(
+        of node: AttributeSyntax,
+        providingPeersOf declaration: some DeclSyntaxProtocol,
+        in context: some MacroExpansionContext
+    ) throws -> [DeclSyntax] {
+        []
+    }
+}
+
 /// Declares a secondary index on a `@Table` struct. Generates no peers. Read
 /// by `@Table`, which collects sibling `@Index` annotations and emits a typed
 /// `Indexes` enum with one `static let` per declared index.
