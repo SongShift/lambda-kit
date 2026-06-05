@@ -29,11 +29,14 @@ public protocol DynamoClient: Sendable {
 
     /// Run an update and decode the returned attributes into `Model`. Used
     /// by `UpdateReturning.execute(using:)`. Adapters must honor the wrapper's
-    /// `returnValues` choice on the wire.
+    /// `returnValues` choice on the wire, throw
+    /// `ReturnedAttributesNotFound<Model>` when the response carries no
+    /// attributes, and let decoding failures propagate as the decoder's own
+    /// error.
     func updateItemReturning<Model: DynamoModel>(
         _ input: UpdateReturning<Model>,
         logger: Logger
-    ) async throws -> Model?
+    ) async throws -> Model
 
     func deleteItem<Model: DynamoModel>(_ input: DeleteItemInput<Model>, logger: Logger) async throws
 

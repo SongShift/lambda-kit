@@ -101,9 +101,9 @@ extension DynamoFailure: DynamoError {
 }
 
 /// Shared interface across every lambda-kit error type: `DynamoFailure`,
-/// `TransactionCanceled`, and `ConditionalCheckFailed<Model>` all conform.
-/// Lets callers ask "should I retry this?" without knowing which concrete
-/// type they caught:
+/// `TransactionCanceled`, `ConditionalCheckFailed<Model>`, and
+/// `ReturnedAttributesNotFound<Model>` all conform. Lets callers ask "should
+/// I retry this?" without knowing which concrete type they caught:
 ///
 ///     do {
 ///         try await operation.execute(using: client)

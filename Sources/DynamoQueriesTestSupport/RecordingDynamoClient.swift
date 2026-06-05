@@ -120,11 +120,14 @@ public actor RecordingDynamoClient: DynamoClient {
     public func updateItemReturning<Model: DynamoModel>(
         _ input: UpdateReturning<Model>,
         logger _: Logger
-    ) async throws -> Model? {
+    ) async throws -> Model {
         log(input)
         updateReturningInputs[ObjectIdentifier(Model.self)] = input
         try throwIfPrimed(&updateErrors, Model.self)
-        return updateReturnItems[ObjectIdentifier(Model.self)] as? Model
+        guard let item = updateReturnItems[ObjectIdentifier(Model.self)] as? Model else {
+            throw ReturnedAttributesNotFound<Model>(tableName: input.input.tableName)
+        }
+        return item
     }
 
     public func deleteItem<Model: DynamoModel>(

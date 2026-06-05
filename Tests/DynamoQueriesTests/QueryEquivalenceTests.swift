@@ -1110,8 +1110,8 @@ struct UpdateReturnValuesTests {
         .returnNewValues()
         .execute(using: client)
 
-        #expect(returned?.id == "scan-abc")
-        #expect(returned?.status == "processing")
+        #expect(returned.id == "scan-abc")
+        #expect(returned.status == "processing")
     }
 }
 
