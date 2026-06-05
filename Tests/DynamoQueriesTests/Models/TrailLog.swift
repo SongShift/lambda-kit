@@ -160,6 +160,37 @@ public struct GearLocker: Codable {
     public var capacity: Int = 0
 }
 
+// MARK: - Permit (nested map attribute addressed via document paths)
+
+public struct PermitHold: Codable, Equatable, Sendable {
+    public var heldUntil: Double
+    public var holdId: String
+
+    public enum CodingKeys: String, CodingKey {
+        case heldUntil
+        case holdId
+    }
+}
+
+/// Call-site representation for `set(to:via:)`: `PermitHold` is a plain
+/// Codable struct from "another module", so its encoding is supplied ad hoc
+/// rather than declared on the model with `@ExpressionValue(as:)`.
+public enum PermitHoldEncoder: DynamoExpressionRepresentation {
+    public static func encode(_ value: PermitHold) throws -> DynamoValue {
+        .map([
+            "heldUntil": .number(String(value.heldUntil)),
+            "holdId": .string(value.holdId),
+        ])
+    }
+}
+
+@Table("TrailPermits")
+public struct Permit: Codable {
+    @PartitionKey
+    public var permitId: String
+    public var hold: PermitHold?
+}
+
 // MARK: - PendingHikeBatch (scan target)
 
 @Table("TrailPendingHikeBatches")

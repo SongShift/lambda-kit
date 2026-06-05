@@ -17,11 +17,25 @@ public struct PlaceholderAllocator: Sendable {
 
     /// Allocate a fresh `#nN` placeholder for the given attribute name and
     /// record the mapping.
+    ///
+    /// Dots are treated as document-path separators: each component gets its
+    /// own placeholder and the components are rejoined with `.`, so
+    /// `lock.lockedUntil` renders as `#n0.#n1` — a path into the map. (A
+    /// single shared placeholder would be substituted by DynamoDB as a
+    /// literal attribute *name* containing a dot, never a path.) The
+    /// trade-off: attribute names containing a literal `.` can't be
+    /// addressed through the DSL; build those requests with the raw input
+    /// initializers instead.
     public mutating func name(for attribute: String) -> String {
-        let placeholder = "#n\(nameCounter)"
-        nameCounter += 1
-        attributeNames[placeholder] = attribute
-        return placeholder
+        attribute
+            .split(separator: ".")
+            .map { component in
+                let placeholder = "#n\(nameCounter)"
+                nameCounter += 1
+                attributeNames[placeholder] = String(component)
+                return placeholder
+            }
+            .joined(separator: ".")
     }
 
     /// Allocate a fresh `:vN` placeholder for the given value and record the

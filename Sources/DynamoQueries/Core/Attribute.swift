@@ -17,6 +17,40 @@ public struct Attribute<Value>: Sendable, AttributeReference {
     }
 }
 
+// MARK: - Document paths
+
+extension Attribute {
+    /// References a field nested inside this map attribute as a DynamoDB
+    /// document path (`lock.lockedUntil`). The phantom `Nested` type
+    /// constrains which operators the path supports, exactly like a
+    /// top-level attribute:
+    ///
+    ///     Condition {
+    ///         $lock.doesNotExist
+    ///             || $lock.nested(Lock.CodingKeys.lockedUntil, as: Double.self) < now
+    ///     }
+    ///
+    /// The compiler allocates a placeholder per path component, so the
+    /// rendered expression is `#n0.#n1` — a path into the map, not a literal
+    /// attribute name containing a dot.
+    public func nested<Nested>(
+        _ key: some CodingKey,
+        as type: Nested.Type = Nested.self
+    ) -> Attribute<Nested> {
+        nested(key.stringValue, as: type)
+    }
+
+    /// String-named variant of `nested(_:as:)`. Prefer the `CodingKey`
+    /// overload when the nested type declares coding keys; it keeps the path
+    /// aligned with what the model's `Codable` conformance writes.
+    public func nested<Nested>(
+        _ name: String,
+        as type: Nested.Type = Nested.self
+    ) -> Attribute<Nested> {
+        Attribute<Nested>("\(self.name).\(name)")
+    }
+}
+
 // MARK: - size(path)
 
 /// Marker protocol for attribute value types that DynamoDB's `size(path)`
@@ -264,6 +298,28 @@ extension Attribute where Value: DynamoEncodable {
 }
 
 extension Attribute {
+    /// SET this attribute through an ad-hoc `DynamoExpressionRepresentation`,
+    /// supplied at the call site instead of on the model with
+    /// `@ExpressionValue(as:)`. Reach for this when the representation can't
+    /// live next to the model — e.g. it needs dependencies (an encoder
+    /// library, a vendor SDK) that the model's module deliberately doesn't
+    /// have. The same contract applies: the encoding must match what the
+    /// model's `Codable` conformance writes on puts.
+    public func set<Rep: DynamoExpressionRepresentation>(
+        to value: Rep.Value,
+        via representation: Rep.Type
+    ) throws -> UpdateAction where Rep.Value == Value {
+        .set(attributeName: name, value: try Rep.encode(value))
+    }
+
+    /// Optional-typed variant of `set(to:via:)`.
+    public func set<Rep: DynamoExpressionRepresentation>(
+        to value: Rep.Value,
+        via representation: Rep.Type
+    ) throws -> UpdateAction where Value == Rep.Value? {
+        .set(attributeName: name, value: try Rep.encode(value))
+    }
+
     /// SET an optional-typed attribute, accepting the non-optional wrapped value.
     public func set<Wrapped: DynamoEncodable>(to value: Wrapped) -> UpdateAction
         where Value == Wrapped? {
