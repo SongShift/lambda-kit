@@ -53,7 +53,9 @@ actor FakeDynamoClient: DynamoClient {
     func updateItemReturning<Model: DynamoModel>(
         _ input: UpdateReturning<Model>,
         logger _: Logger
-    ) async throws -> Model? { nil }
+    ) async throws -> Model {
+        throw ReturnedAttributesNotFound<Model>(tableName: input.input.tableName)
+    }
     func deleteItem<Model: DynamoModel>(_ input: DeleteItemInput<Model>, logger _: Logger) async throws {}
     func scan<Model: DynamoModel>(
         _ input: ScanInput<Model>,

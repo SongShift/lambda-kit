@@ -53,13 +53,16 @@ extension UpdateInput {
     }
 
     /// Ask DynamoDB to return the entire item *after* the update is applied.
-    /// `.execute(using:)` then returns `Model?` instead of `Void`.
+    /// `.execute(using:)` then returns the post-update `Model` instead of
+    /// `Void`.
     public func returnNewValues() -> UpdateReturning<Model> {
         UpdateReturning(input: self, returnValues: .allNew)
     }
 
     /// Ask DynamoDB to return the entire item *before* the update was
-    /// applied. `Model?` is the pre-update item.
+    /// applied. The returned `Model` is the pre-update item; an update that
+    /// created the item has no prior values and throws
+    /// `ReturnedAttributesNotFound`.
     public func returnOldValues() -> UpdateReturning<Model> {
         UpdateReturning(input: self, returnValues: .allOld)
     }
@@ -89,9 +92,10 @@ public enum UpdateReturnValues: Sendable {
 }
 
 /// Wrapper produced by `UpdateInput.returnNewValues()` and friends.
-/// `.execute(using:)` returns `Model?`. `nil` means DynamoDB returned no
-/// `Attributes` field for the response (which happens for some return-value
-/// modes when there's nothing to return).
+/// `.execute(using:)` returns the decoded `Model`. A response with no
+/// `Attributes` field (which happens for some return-value modes when there's
+/// nothing to return) throws `ReturnedAttributesNotFound<Model>`; attributes
+/// that fail to decode throw the decoder's own error.
 public struct UpdateReturning<Model: DynamoModel>: Sendable {
     public let input: UpdateInput<Model>
     public let returnValues: UpdateReturnValues
@@ -104,7 +108,7 @@ public struct UpdateReturning<Model: DynamoModel>: Sendable {
     public func execute(
         using client: any DynamoClient,
         logger: Logger = .dynamoQueriesDisabled
-    ) async throws -> Model? {
+    ) async throws -> Model {
         try await client.updateItemReturning(self, logger: logger)
     }
 }
