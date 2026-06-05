@@ -23,13 +23,13 @@ private func nonEmpty(_ map: [String: DynamoValue]?) -> [String: DynamoDB.Attrib
 // `ConditionalCheckFailed<Model>`, so every write path goes through this
 // wrapper.
 
-private func translatingConditionalCheckFailures<Model: DynamoModel>(
+private func translatingConditionalCheckFailures<Model: DynamoModel, T>(
     table: String,
     as type: Model.Type,
-    _ block: () async throws -> Void
-) async throws {
+    _ block: () async throws -> T
+) async throws -> T {
     do {
-        try await block()
+        return try await block()
     } catch let error as DynamoDBErrorType where error == .conditionalCheckFailedException {
         var prior: Model? = nil
         if let extended = error.context?.extendedError as? DynamoDB.ConditionalCheckFailedException,
@@ -410,10 +410,9 @@ public struct SotoDynamoClient: DynamoClient {
     public func updateItemReturning<Model: DynamoModel>(
         _ input: DynamoQueries.UpdateReturning<Model>,
         logger: Logger
-    ) async throws -> Model? {
+    ) async throws -> Model {
         let resolved = resolveTableName(input.input.tableName)
-        var result: Model?
-        try await translatingDynamoFailures {
+        return try await translatingDynamoFailures {
             try await translatingConditionalCheckFailures(
                 table: resolved,
                 as: Model.self
@@ -422,12 +421,12 @@ public struct SotoDynamoClient: DynamoClient {
                     input.toSotoUpdateItemInput(tableNameOverride: resolved),
                     logger: logger
                 )
-                if let attributes = output.attributes {
-                    result = try? DynamoDecoder.decode(Model.self, from: attributes)
+                guard let attributes = output.attributes else {
+                    throw ReturnedAttributesNotFound<Model>(tableName: resolved)
                 }
+                return try DynamoDecoder.decode(Model.self, from: attributes)
             }
         }
-        return result
     }
 
     public func deleteItem<Model: DynamoModel>(

@@ -153,10 +153,10 @@ public actor FailingDynamoClient: DynamoClient {
     public func updateItemReturning<Model: DynamoModel>(
         _ input: UpdateReturning<Model>,
         logger _: Logger
-    ) async throws -> Model? {
+    ) async throws -> Model {
         try failConditionalConflict(Model.self, returnPrior: input.input.returnPriorOnConflict)
         try failIfNeeded(.update)
-        return nil
+        throw ReturnedAttributesNotFound<Model>(tableName: input.input.tableName)
     }
 
     public func deleteItem<Model: DynamoModel>(

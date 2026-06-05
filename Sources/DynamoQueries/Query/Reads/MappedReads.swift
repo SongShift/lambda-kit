@@ -186,9 +186,10 @@ extension BatchGetInput {
 
 // MARK: - MappedUpdateReturning
 
-/// An `UpdateReturning` with a transform applied to the returned item. `execute`
-/// yields `Output?`. `nil` passes through when DynamoDB returns no attributes
-/// for the chosen `returnValues` mode.
+/// An `UpdateReturning` with a transform applied to the returned item.
+/// `execute` yields `Output`. A response with no attributes for the chosen
+/// `returnValues` mode throws `ReturnedAttributesNotFound<Model>` before the
+/// transform runs.
 public struct MappedUpdateReturning<Model: DynamoModel, Output: Sendable>: Sendable {
     let input: UpdateReturning<Model>
     let transform: @Sendable (Model) throws -> Output
@@ -196,8 +197,8 @@ public struct MappedUpdateReturning<Model: DynamoModel, Output: Sendable>: Senda
     public func execute(
         using client: any DynamoClient,
         logger: Logger = .dynamoQueriesDisabled
-    ) async throws -> Output? {
-        try await input.execute(using: client, logger: logger).map(transform)
+    ) async throws -> Output {
+        try transform(await input.execute(using: client, logger: logger))
     }
 
     public func map<Next: Sendable>(
