@@ -135,6 +135,10 @@ extension URL: DynamoEncodable {
     public func toDynamoValue() -> DynamoValue { .string(absoluteString) }
 }
 
+extension UUID: DynamoEncodable {
+    public func toDynamoValue() -> DynamoValue { .string(uuidString) }
+}
+
 extension Data: DynamoEncodable {
     public func toDynamoValue() -> DynamoValue { .binary(self) }
 }
