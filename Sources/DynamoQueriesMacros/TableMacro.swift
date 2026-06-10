@@ -125,7 +125,7 @@ public struct TableMacro: ExtensionMacro {
         }
 
         // Collect sibling @Index annotations on the struct
-        let indexes: [(swiftName: String, partitionKey: String, sortKey: String?)] =
+        let indexes: [(wireName: String, partitionKey: String, sortKey: String?)] =
             structDecl.attributes.compactMap { element in
                 guard let attributeSyntax = element.as(AttributeSyntax.self),
                       attributeSyntax.attributeName.trimmedDescription == "Index",
@@ -155,18 +155,14 @@ public struct TableMacro: ExtensionMacro {
                 }
 
                 guard let indexName, let indexPartition else { return nil }
-                return (swiftName: indexName, partitionKey: indexPartition, sortKey: indexSort)
+                return (wireName: indexName, partitionKey: indexPartition, sortKey: indexSort)
             }
 
         // Detect access level: match the struct's visibility
-        let accessLevel: String
-        if let modifiers = structDecl.modifiers.first(where: {
+        let isPublic = structDecl.modifiers.contains {
             $0.name.tokenKind == .keyword(.public)
-        }) {
-            accessLevel = "public "
-        } else {
-            accessLevel = ""
         }
+        let accessLevel = isPublic ? "public " : ""
 
         // Build the extension source
         let sortKeyExpr = sortKeyName.map { "\"\($0)\"" } ?? "nil"
@@ -258,9 +254,20 @@ public struct TableMacro: ExtensionMacro {
         if indexes.isEmpty {
             indexesBlock = ""
         } else {
-            let indexLines = indexes.map { index in
+            // DynamoDB index names allow characters Swift identifiers don't
+            // ("byEmail-index"); the identifier is camel-cased from the wire
+            // name, which is emitted verbatim.
+            var identifierToWireName: [String: String] = [:]
+            let indexLines = try indexes.map { index in
+                let identifier = try swiftIdentifier(forIndexName: index.wireName)
+                if let existing = identifierToWireName[identifier] {
+                    throw DiagnosticError(
+                        "@Index names \"\(existing)\" and \"\(index.wireName)\" both map to the Swift identifier \"\(identifier)\""
+                    )
+                }
+                identifierToWireName[identifier] = index.wireName
                 let indexSortKeyExpr = index.sortKey.map { "\"\($0)\"" } ?? "nil"
-                return "        \(accessLevel)static let \(index.swiftName) = Index<\(typeName)>(name: \"\(index.swiftName)\", partitionKey: \"\(index.partitionKey)\", sortKey: \(indexSortKeyExpr))"
+                return "        \(accessLevel)static let \(identifier) = Index<\(typeName)>(name: \"\(index.wireName)\", partitionKey: \"\(index.partitionKey)\", sortKey: \(indexSortKeyExpr))"
             }.joined(separator: "\n")
             indexesBlock = """
 
@@ -296,6 +303,36 @@ public struct TableMacro: ExtensionMacro {
 
         return [extensionDecl]
     }
+}
+
+// MARK: - Index identifiers
+
+/// Camel-cases a DynamoDB index name into a valid Swift identifier:
+/// `"byEmail-index"` becomes `byEmailIndex`. Only the generated `Indexes`
+/// member is renamed; the wire name is emitted verbatim.
+func swiftIdentifier(forIndexName name: String) throws -> String {
+    var result = ""
+    var uppercaseNext = false
+    for character in name {
+        if character.isLetter || character.isNumber || character == "_" {
+            if uppercaseNext, !result.isEmpty {
+                result.append(contentsOf: String(character).uppercased())
+            } else {
+                result.append(character)
+            }
+            uppercaseNext = false
+        } else {
+            uppercaseNext = true
+        }
+    }
+    guard !result.isEmpty else {
+        throw DiagnosticError(
+            "@Index name \"\(name)\" contains no characters usable in a Swift identifier")
+    }
+    if result.first!.isNumber {
+        result = "_" + result
+    }
+    return result
 }
 
 // MARK: - Error

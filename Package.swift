@@ -35,7 +35,7 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-http-types.git", from: "1.0.0"),
         .package(url: "https://github.com/awslabs/swift-aws-lambda-events", from: "1.2.3"),
         .package(url: "https://github.com/soto-project/soto.git", from: "7.0.0"),
-        .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "600.0.1"),
+        .package(url: "https://github.com/swiftlang/swift-syntax.git", "600.0.1"..<"700.0.0"),
         .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
         .package(
             url: "https://github.com/awslabs/swift-aws-lambda-runtime",
@@ -89,6 +89,13 @@ let package = Package(
                 .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
                 .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
                 .product(name: "SwiftParser", package: "swift-syntax"),
+            ]
+        ),
+        .testTarget(
+            name: "DynamoQueriesMacrosTests",
+            dependencies: [
+                "DynamoQueriesMacros",
+                .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
             ]
         ),
         .testTarget(
