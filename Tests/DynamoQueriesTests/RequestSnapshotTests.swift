@@ -112,6 +112,45 @@ struct RequestSnapshotTests {
         }
     }
 
+    @Test("returnConflictingItem survives lowering into a transaction")
+    func transactWriteReturnConflictingItemSnapshot() throws {
+        let card = TrailCard(
+            cardTokenHash: "hash-9f",
+            ownerId: "hiker-1",
+            createdAt: 1_735_776_000
+        )
+
+        let items = TransactWriteInput {
+            card.put { $0.cardTokenHash.doesNotExist }.returnConflictingItem()
+        }.items
+        #expect(items.count == 1)
+        #expect(items[0].returnConflictingItem)
+
+        try assertInlineSnapshot(
+            of: TransactWriteInput {
+                card.put { $0.cardTokenHash.doesNotExist }.returnConflictingItem()
+                PhotoScan.update(partitionKey: "scan-abc") { column in
+                    column.status.set(to: "processing")
+                }
+            },
+            as: .request
+        ) {
+            """
+            TransactWrite
+              [0] Put TrailCards
+                item: {"cardTokenHash":"hash-9f","createdAt":1735776000,"ownerId":"hiker-1"}
+                condition: attribute_not_exists(#n0)
+                names: { #n0: cardTokenHash }
+                returnConflicting: true
+              [1] Update TrailPhotoScans
+                key: { id: S("scan-abc") }
+                update: SET #n0 = :v0
+                names: { #n0: status }
+                values: { :v0: S("processing") }
+            """
+        }
+    }
+
     @Test("A transact get renders to a stable request snapshot")
     func transactGetSnapshot() {
         assertInlineSnapshot(

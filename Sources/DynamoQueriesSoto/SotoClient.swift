@@ -496,6 +496,8 @@ public struct SotoDynamoClient: DynamoClient {
     ) async throws {
         let sotoItems = try items.map { item -> DynamoDB.TransactWriteItem in
             let resolved = resolveTableName(item.tableName)
+            let returnPrior: DynamoDB.ReturnValuesOnConditionCheckFailure? =
+                item.returnConflictingItem ? .allOld : nil
             switch item.kind {
             case .put(let model, let condition):
                 let encoded = try DynamoEncoder.encode(model)
@@ -504,6 +506,7 @@ public struct SotoDynamoClient: DynamoClient {
                     expressionAttributeNames: nonEmpty(condition?.attributeNames),
                     expressionAttributeValues: nonEmpty(condition?.attributeValues),
                     item: encoded,
+                    returnValuesOnConditionCheckFailure: returnPrior,
                     tableName: resolved
                 ))
             case .update(let key, let updateExpr, let condition, let names, let values):
@@ -513,6 +516,7 @@ public struct SotoDynamoClient: DynamoClient {
                     expressionAttributeValues: values.isEmpty
                         ? nil : values.mapValues { $0.toSotoAttributeValue() },
                     key: key.mapValues { $0.toSotoAttributeValue() },
+                    returnValuesOnConditionCheckFailure: returnPrior,
                     tableName: resolved,
                     updateExpression: updateExpr
                 ))
@@ -522,6 +526,7 @@ public struct SotoDynamoClient: DynamoClient {
                     expressionAttributeNames: nonEmpty(condition?.attributeNames),
                     expressionAttributeValues: nonEmpty(condition?.attributeValues),
                     key: key.mapValues { $0.toSotoAttributeValue() },
+                    returnValuesOnConditionCheckFailure: returnPrior,
                     tableName: resolved
                 ))
             case .conditionCheck(let key, let condition):
@@ -530,6 +535,7 @@ public struct SotoDynamoClient: DynamoClient {
                     expressionAttributeNames: nonEmpty(condition.attributeNames),
                     expressionAttributeValues: nonEmpty(condition.attributeValues),
                     key: key.mapValues { $0.toSotoAttributeValue() },
+                    returnValuesOnConditionCheckFailure: returnPrior,
                     tableName: resolved
                 ))
             }

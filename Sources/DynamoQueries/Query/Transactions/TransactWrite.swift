@@ -82,6 +82,10 @@ extension TransactionCanceled: DynamoError {
 public struct TransactWriteItem: Sendable {
     public let tableName: String
     public let kind: Kind
+    /// Ask DynamoDB to return the conflicting item if this leg fails its
+    /// condition check. Surfaces on `TransactionCanceled.Cancellation.priorRawItem`.
+    /// Set by `.returnConflictingItem()` on the originating write input.
+    public let returnConflictingItem: Bool
 
     /// The pre-compiled condition portion of a transact item. Mirrors the
     /// shape of conditional expressions on the existing single-item write
@@ -115,9 +119,10 @@ public struct TransactWriteItem: Sendable {
         case conditionCheck(key: [String: DynamoValue], condition: Condition)
     }
 
-    public init(tableName: String, kind: Kind) {
+    public init(tableName: String, kind: Kind, returnConflictingItem: Bool = false) {
         self.tableName = tableName
         self.kind = kind
+        self.returnConflictingItem = returnConflictingItem
     }
 }
 
@@ -189,7 +194,8 @@ extension PutItemInput: TransactWritable {
     public func toTransactWriteItem() -> TransactWriteItem {
         TransactWriteItem(
             tableName: tableName,
-            kind: .put(item: item, condition: transactCondition())
+            kind: .put(item: item, condition: transactCondition()),
+            returnConflictingItem: returnPriorOnConflict
         )
     }
 
@@ -206,7 +212,8 @@ extension UpdateInput: TransactWritable {
                 condition: transactCondition(),
                 attributeNames: expressionAttributeNames,
                 attributeValues: expressionAttributeValues
-            )
+            ),
+            returnConflictingItem: returnPriorOnConflict
         )
     }
 
@@ -217,7 +224,8 @@ extension DeleteItemInput: TransactWritable {
     public func toTransactWriteItem() -> TransactWriteItem {
         TransactWriteItem(
             tableName: tableName,
-            kind: .delete(key: key, condition: transactCondition())
+            kind: .delete(key: key, condition: transactCondition()),
+            returnConflictingItem: returnPriorOnConflict
         )
     }
 

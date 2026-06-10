@@ -202,6 +202,9 @@ extension TransactGetInput: RenderableRequest {
 
 private extension TransactWriteItem {
     func renderedRequest(index: Int) -> String {
+        // Rendered only when set, so requests without the flag keep their
+        // existing snapshot text.
+        let returnConflicting = returnConflictingItem ? "true" : nil
         switch kind {
         case let .put(item, condition):
             return renderTransactionLines(
@@ -211,6 +214,7 @@ private extension TransactWriteItem {
                     ("condition", condition?.expression),
                     ("names", condition?.renderedNames),
                     ("values", condition?.renderedValues),
+                    ("returnConflicting", returnConflicting),
                 ]
             )
 
@@ -223,6 +227,7 @@ private extension TransactWriteItem {
                     ("condition", condition?.expression),
                     ("names", !names.isEmpty ? RequestRender.nameMap(names) : nil),
                     ("values", !values.isEmpty ? RequestRender.valueMap(values) : nil),
+                    ("returnConflicting", returnConflicting),
                 ]
             )
 
@@ -234,6 +239,7 @@ private extension TransactWriteItem {
                     ("condition", condition?.expression),
                     ("names", condition?.renderedNames),
                     ("values", condition?.renderedValues),
+                    ("returnConflicting", returnConflicting),
                 ]
             )
 
@@ -245,6 +251,7 @@ private extension TransactWriteItem {
                     ("condition", condition.expression),
                     ("names", condition.renderedNames),
                     ("values", condition.renderedValues),
+                    ("returnConflicting", returnConflicting),
                 ]
             )
         }
