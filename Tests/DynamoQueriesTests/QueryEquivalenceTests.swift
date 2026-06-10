@@ -785,6 +785,35 @@ struct ProjectionTests {
         expectEquivalent(dslSoto, reference)
     }
 
+    // Dotted projection names are document paths. Each segment needs its own
+    // placeholder: a single placeholder holding "hold.heldUntil" would resolve
+    // to a literal top-level attribute containing a dot, not a path into the
+    // map, and the projection would silently return nothing.
+    @Test("GetItem: projection placeholders each segment of a document path")
+    func getItemProjectionWithDocumentPath() async throws {
+        let client = RecordingDynamoClient()
+        _ = try await Permit.get(partitionKey: "permit-1")
+            .project(
+                Permit.$permitId,
+                Permit.columns.hold.nested(PermitHold.CodingKeys.heldUntil, as: Double.self)
+            )
+            .execute(using: client)
+        let captured = try #require(await client.lastGetInput(for: Permit.self))
+        let dslSoto = captured.toSotoGetItemInput()
+
+        let reference = DynamoDB.GetItemInput(
+            expressionAttributeNames: [
+                "#p0": "permitId",
+                "#p1": "hold",
+                "#p2": "heldUntil",
+            ],
+            key: ["permitId": .s("permit-1")],
+            projectionExpression: "#p0, #p1.#p2",
+            tableName: "TrailPermits"
+        )
+        expectEquivalent(dslSoto, reference)
+    }
+
     @Test("Scan: .project([_]) array overload")
     func scanAttributesArrayOverload() async throws {
         let client = RecordingDynamoClient()

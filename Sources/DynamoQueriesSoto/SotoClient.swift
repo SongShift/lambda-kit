@@ -125,11 +125,18 @@ private func cancellationFailure(code: String?, message: String?) -> DynamoFailu
 
 // MARK: - Projection placeholdering
 //
-// Every name in `projectionAttributes` is rewritten as a `#pN` placeholder so
+// Every name in `projectionAttributes` is rewritten with `#pN` placeholders so
 // reserved words (status, name, count, ...) survive the round trip. The `#p`
 // prefix is disjoint from the `#n` namespace the `ExpressionCompiler`
 // allocates into, so merging the two `expressionAttributeNames` maps is a
 // straight union with no collisions.
+//
+// Dotted names are document paths (`lock.lockedUntil`, produced by
+// `nested(_:as:)`), and follow the same rule as `PlaceholderAllocator`: one
+// placeholder per path component, joined back with `.`. DynamoDB substitutes
+// each placeholder as a literal attribute *name*, so a single placeholder
+// holding the whole dotted string would name a top-level attribute that
+// contains a dot, never a path into the map.
 private func resolveProjection(
     attributes: [String]?,
     existingNames: [String: String]
@@ -138,13 +145,18 @@ private func resolveProjection(
         return (nil, existingNames)
     }
     var merged = existingNames
-    var placeholders: [String] = []
-    for (index, name) in attributes.enumerated() {
-        let placeholder = "#p\(index)"
-        merged[placeholder] = name
-        placeholders.append(placeholder)
+    var paths: [String] = []
+    var counter = 0
+    for name in attributes {
+        let segments = name.split(separator: ".").map { segment -> String in
+            let placeholder = "#p\(counter)"
+            counter += 1
+            merged[placeholder] = String(segment)
+            return placeholder
+        }
+        paths.append(segments.joined(separator: "."))
     }
-    return (placeholders.joined(separator: ", "), merged)
+    return (paths.joined(separator: ", "), merged)
 }
 
 // MARK: - Input → Soto conversion
