@@ -48,7 +48,7 @@ extension BatchWriteInput {
         }
         var copy = self
         copy.deleteKeys.append([
-            Model._table.partitionKey: partitionKey.toDynamoValue()
+            Model._table.partitionKey.name: partitionKey.toDynamoValue()
         ])
         return copy
     }
@@ -62,8 +62,8 @@ extension BatchWriteInput {
         }
         var copy = self
         copy.deleteKeys.append([
-            Model._table.partitionKey: partitionKey.toDynamoValue(),
-            sortKeyName: sortKey.toDynamoValue(),
+            Model._table.partitionKey.name: partitionKey.toDynamoValue(),
+            sortKeyName.name: sortKey.toDynamoValue(),
         ])
         return copy
     }

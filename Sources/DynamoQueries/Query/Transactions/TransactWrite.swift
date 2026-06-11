@@ -288,7 +288,7 @@ extension DynamoModel {
             throw PrimaryKeyError.sortKeyRequired(table: _table.name)
         }
         return makeConditionCheck(
-            key: [_table.partitionKey: partitionKey.toDynamoValue()],
+            key: [_table.partitionKey.name: partitionKey.toDynamoValue()],
             expressions: condition(Self.columns)
         )
     }
@@ -303,8 +303,8 @@ extension DynamoModel {
         }
         return makeConditionCheck(
             key: [
-                _table.partitionKey: partitionKey.toDynamoValue(),
-                sortKeyName: sortKey.toDynamoValue(),
+                _table.partitionKey.name: partitionKey.toDynamoValue(),
+                sortKeyName.name: sortKey.toDynamoValue(),
             ],
             expressions: condition(Self.columns)
         )

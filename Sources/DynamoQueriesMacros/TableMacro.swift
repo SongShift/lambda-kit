@@ -32,8 +32,8 @@ public struct TableMacro: ExtensionMacro {
         }
 
         // Collect property metadata
-        var partitionKeyName: String?
-        var sortKeyName: String?
+        var partitionKey: (name: String, typeName: String)?
+        var sortKey: (name: String, typeName: String)?
         var properties:
             [(swiftName: String, dynamoName: String, typeName: String, representation: String?)] =
                 []
@@ -87,7 +87,7 @@ public struct TableMacro: ExtensionMacro {
                 attribute.as(AttributeSyntax.self)?.attributeName.trimmedDescription == "PartitionKey"
             }
             if isPartitionKey {
-                partitionKeyName = dynamoName
+                partitionKey = (name: dynamoName, typeName: propertyType)
             }
 
             // Check for @SortKey
@@ -95,7 +95,7 @@ public struct TableMacro: ExtensionMacro {
                 attribute.as(AttributeSyntax.self)?.attributeName.trimmedDescription == "SortKey"
             }
             if isSortKey {
-                sortKeyName = dynamoName
+                sortKey = (name: dynamoName, typeName: propertyType)
             }
 
             // Skip computed properties unless explicitly tagged as a key or attribute.
@@ -120,42 +120,51 @@ public struct TableMacro: ExtensionMacro {
             ))
         }
 
-        guard let resolvedPartitionKey = partitionKeyName else {
+        guard let partitionKey else {
             throw DiagnosticError("@Table struct must have exactly one @PartitionKey property")
         }
 
-        // Collect sibling @Index annotations on the struct
-        let indexes: [(wireName: String, partitionKey: String, sortKey: String?)] =
-            structDecl.attributes.compactMap { element in
+        // Each key records its DynamoDB scalar type alongside its wire name;
+        // the type comes from the property the key name resolves to.
+        let typesByWireName = Dictionary(
+            properties.map { ($0.dynamoName, $0.typeName) },
+            uniquingKeysWith: { first, _ in first }
+        )
+
+        // Collect sibling @Index annotations on the struct. The
+        // single-attribute form (partitionKey:/sortKey:) and the
+        // multi-attribute form (partitionKeys:/sortKeys:) both normalize to
+        // key-name arrays here.
+        let indexes: [(wireName: String, partitionKeys: [String], sortKeys: [String])] =
+            try structDecl.attributes.compactMap { element in
                 guard let attributeSyntax = element.as(AttributeSyntax.self),
                       attributeSyntax.attributeName.trimmedDescription == "Index",
                       let arguments = attributeSyntax.arguments?.as(LabeledExprListSyntax.self)
                 else { return nil }
 
                 var indexName: String?
-                var indexPartition: String?
-                var indexSort: String?
+                var partitionKeys: [String] = []
+                var sortKeys: [String] = []
 
                 for argument in arguments {
-                    guard let literal = argument.expression.as(StringLiteralExprSyntax.self),
-                          let segment = literal.segments.first?.as(StringSegmentSyntax.self)
-                    else { continue }
-                    let value = segment.content.text
-
                     switch argument.label?.text {
                     case nil:
-                        indexName = value
+                        indexName = stringLiteralValue(argument.expression)
                     case "partitionKey":
-                        indexPartition = value
+                        partitionKeys = stringLiteralValue(argument.expression).map { [$0] } ?? []
                     case "sortKey":
-                        indexSort = value
+                        sortKeys = stringLiteralValue(argument.expression).map { [$0] } ?? []
+                    case "partitionKeys":
+                        partitionKeys = try stringLiteralArray(argument.expression, label: "partitionKeys")
+                    case "sortKeys":
+                        sortKeys = try stringLiteralArray(argument.expression, label: "sortKeys")
                     default:
                         break
                     }
                 }
 
-                guard let indexName, let indexPartition else { return nil }
-                return (wireName: indexName, partitionKey: indexPartition, sortKey: indexSort)
+                guard let indexName, !partitionKeys.isEmpty else { return nil }
+                return (wireName: indexName, partitionKeys: partitionKeys, sortKeys: sortKeys)
             }
 
         // Detect access level: match the struct's visibility
@@ -165,7 +174,11 @@ public struct TableMacro: ExtensionMacro {
         let accessLevel = isPublic ? "public " : ""
 
         // Build the extension source
-        let sortKeyExpr = sortKeyName.map { "\"\($0)\"" } ?? "nil"
+        let partitionKeyAttributeExpr = try keyAttributeExpr(
+            name: partitionKey.name, typeName: partitionKey.typeName, context: "@PartitionKey")
+        let sortKeyExpr = try sortKey.map {
+            try keyAttributeExpr(name: $0.name, typeName: $0.typeName, context: "@SortKey")
+        } ?? "nil"
 
         // `@ExpressionValue(as:)` properties surface as `RepresentedAttribute<Rep>`
         // instead of `Attribute<Type>`, so their DSL ops encode through the
@@ -196,11 +209,11 @@ public struct TableMacro: ExtensionMacro {
         // nothing left to validate at runtime. Calling the wrong arity (a
         // sortKey on a partition-only table, or omitting it on a composite one)
         // is a compile error rather than a thrown `PrimaryKeyError`.
-        let partitionKeyExpr = "[\"\(resolvedPartitionKey)\": partitionKey.toDynamoValue()]"
+        let partitionKeyExpr = "[\"\(partitionKey.name)\": partitionKey.toDynamoValue()]"
         let factoryBlock: String
-        if let sortKeyName {
+        if let sortKey {
             let compositeKeyExpr =
-                "[\"\(resolvedPartitionKey)\": partitionKey.toDynamoValue(), \"\(sortKeyName)\": sortKey.toDynamoValue()]"
+                "[\"\(partitionKey.name)\": partitionKey.toDynamoValue(), \"\(sortKey.name)\": sortKey.toDynamoValue()]"
             factoryBlock = """
 
 
@@ -258,6 +271,7 @@ public struct TableMacro: ExtensionMacro {
             // ("byEmail-index"); the identifier is camel-cased from the wire
             // name, which is emitted verbatim.
             var identifierToWireName: [String: String] = [:]
+            var identifiers: [String] = []
             let indexLines = try indexes.map { index in
                 let identifier = try swiftIdentifier(forIndexName: index.wireName)
                 if let existing = identifierToWireName[identifier] {
@@ -266,21 +280,40 @@ public struct TableMacro: ExtensionMacro {
                     )
                 }
                 identifierToWireName[identifier] = index.wireName
-                let indexSortKeyExpr = index.sortKey.map { "\"\($0)\"" } ?? "nil"
-                return "        \(accessLevel)static let \(identifier) = Index<\(typeName)>(name: \"\(index.wireName)\", partitionKey: \"\(index.partitionKey)\", sortKey: \(indexSortKeyExpr))"
+                identifiers.append(identifier)
+
+                guard index.partitionKeys.count <= 4, index.sortKeys.count <= 4 else {
+                    throw DiagnosticError(
+                        "@Index \"\(index.wireName)\" exceeds DynamoDB's limit of 4 partition-key and 4 sort-key attributes"
+                    )
+                }
+
+                let context = "@Index \"\(index.wireName)\""
+                let partitionExprs = try index.partitionKeys.map {
+                    try resolvedKeyAttributeExpr(name: $0, in: typesByWireName, context: context)
+                }
+                let sortExprs = try index.sortKeys.map {
+                    try resolvedKeyAttributeExpr(name: $0, in: typesByWireName, context: context)
+                }
+                let sortArgument = sortExprs.isEmpty
+                    ? "" : ", sortKeys: [\(sortExprs.joined(separator: ", "))]"
+                return "        \(accessLevel)static let \(identifier) = Index<\(typeName)>(name: \"\(index.wireName)\", partitionKeys: [\(partitionExprs.joined(separator: ", "))]\(sortArgument))"
             }.joined(separator: "\n")
+            let indexList = identifiers.map { "Indexes.\($0)" }.joined(separator: ", ")
             indexesBlock = """
 
 
                 \(accessLevel)enum Indexes {
             \(indexLines)
                 }
+
+                \(accessLevel)static let indexes: [Index<\(typeName)>] = [\(indexList)]
             """
         }
 
         let source = """
         extension \(typeName): DynamoModel {
-            \(accessLevel)static let _table = TableMetadata(name: "\(tableName)", partitionKey: "\(resolvedPartitionKey)", sortKey: \(sortKeyExpr))
+            \(accessLevel)static let _table = TableMetadata(name: "\(tableName)", partitionKey: \(partitionKeyAttributeExpr), sortKey: \(sortKeyExpr))
 
             \(accessLevel)enum Attributes {
         \(attributeDecls)
@@ -303,6 +336,63 @@ public struct TableMacro: ExtensionMacro {
 
         return [extensionDecl]
     }
+}
+
+// MARK: - Key attributes
+
+/// Extracts a string literal's value, or `nil` for any other expression.
+func stringLiteralValue(_ expression: ExprSyntax) -> String? {
+    guard let literal = expression.as(StringLiteralExprSyntax.self),
+          let segment = literal.segments.first?.as(StringSegmentSyntax.self)
+    else { return nil }
+    return segment.content.text
+}
+
+/// Extracts the elements of an array-literal argument like
+/// `partitionKeys: ["creatorId", "isDeleted"]`.
+func stringLiteralArray(_ expression: ExprSyntax, label: String) throws -> [String] {
+    guard let array = expression.as(ArrayExprSyntax.self) else {
+        throw DiagnosticError("@Index \(label) must be an array literal of string literals")
+    }
+    return try array.elements.map { element in
+        guard let value = stringLiteralValue(element.expression) else {
+            throw DiagnosticError("@Index \(label) must be an array literal of string literals")
+        }
+        return value
+    }
+}
+
+/// Renders a `KeyAttribute(...)` expression. The emitted
+/// `(Type).dynamoKeyType` defers the scalar type to the property's
+/// `DynamoKeyEncodable` conformance. `Bool` gets a friendlier diagnostic here
+/// than the missing-conformance error the compiler would otherwise emit at
+/// the expansion site.
+func keyAttributeExpr(name: String, typeName: String, context: String) throws -> String {
+    var scalarBase = typeName
+    while scalarBase.hasSuffix("?") || scalarBase.hasSuffix("!") {
+        scalarBase = String(scalarBase.dropLast())
+    }
+    if scalarBase == "Bool" || scalarBase == "Optional<Bool>" {
+        throw DiagnosticError(
+            "\(context) key \"\(name)\" is Bool, which DynamoDB rejects as a key attribute (keys must be S, N, or B); store the flag as an Int"
+        )
+    }
+    return "KeyAttribute(\"\(name)\", type: (\(typeName)).dynamoKeyType)"
+}
+
+/// Resolves an index key by wire name against the model's properties, then
+/// renders its `KeyAttribute(...)` expression.
+func resolvedKeyAttributeExpr(
+    name: String,
+    in typesByWireName: [String: String],
+    context: String
+) throws -> String {
+    guard let typeName = typesByWireName[name] else {
+        throw DiagnosticError(
+            "\(context) references \"\(name)\", which doesn't match any property's DynamoDB attribute name"
+        )
+    }
+    return try keyAttributeExpr(name: name, typeName: typeName, context: context)
 }
 
 // MARK: - Index identifiers

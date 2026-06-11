@@ -7,6 +7,15 @@ public protocol DynamoModel: Sendable, Codable {
     /// The `@Table` macro generates this type alongside the table metadata.
     associatedtype Columns: Sendable
     static var columns: Columns { get }
+
+    /// Every secondary index declared via `@Index`, in declaration order.
+    /// Together with `_table` this is the model's complete table schema;
+    /// `DynamoQueriesSoto` derives `CreateTable` requests from it.
+    static var indexes: [Index<Self>] { get }
+}
+
+extension DynamoModel {
+    public static var indexes: [Index<Self>] { [] }
 }
 
 // MARK: - Build entry points

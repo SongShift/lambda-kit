@@ -73,7 +73,7 @@ extension DynamoModel {
             throw PrimaryKeyError.sortKeyRequired(table: _table.name)
         }
         let keys = partitionKeys.map {
-            [_table.partitionKey: $0.toDynamoValue()]
+            [_table.partitionKey.name: $0.toDynamoValue()]
         }
         return BatchGetInput(tableName: _table.name, keys: keys)
     }
@@ -89,8 +89,8 @@ extension DynamoModel {
         }
         let keyMaps = keys.map { entry in
             [
-                _table.partitionKey: entry.partitionKey.toDynamoValue(),
-                sortKeyName: entry.sortKey.toDynamoValue(),
+                _table.partitionKey.name: entry.partitionKey.toDynamoValue(),
+                sortKeyName.name: entry.sortKey.toDynamoValue(),
             ]
         }
         return BatchGetInput(tableName: _table.name, keys: keyMaps)
