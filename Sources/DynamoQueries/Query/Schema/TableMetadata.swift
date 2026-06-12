@@ -8,13 +8,13 @@ public struct TableMetadata: Sendable {
     /// On-the-wire DynamoDB table name.
     public let name: String
 
-    /// Attribute name of the partition (hash) key.
-    public let partitionKey: String
+    /// The partition (hash) key.
+    public let partitionKey: KeyAttribute
 
-    /// Attribute name of the sort (range) key, or `nil` for partition-only tables.
-    public let sortKey: String?
+    /// The sort (range) key, or `nil` for partition-only tables.
+    public let sortKey: KeyAttribute?
 
-    public init(name: String, partitionKey: String, sortKey: String? = nil) {
+    public init(name: String, partitionKey: KeyAttribute, sortKey: KeyAttribute? = nil) {
         self.name = name
         self.partitionKey = partitionKey
         self.sortKey = sortKey

@@ -44,7 +44,7 @@ actor FakeDynamoClient: DynamoClient {
     func putItem<Model: DynamoModel>(_ input: PutItemInput<Model>, logger _: Logger) async throws {
         let data = try JSONEncoder().encode(input.item)
         let key: [String: DynamoValue] = [
-            Model._table.partitionKey: .string(extractPK(of: input.item))
+            Model._table.partitionKey.name: .string(extractPK(of: input.item))
         ]
         items[input.tableName, default: [:]][Self.keyString(key)] = data
     }
@@ -82,7 +82,7 @@ actor FakeDynamoClient: DynamoClient {
     /// Best-effort partition-key extraction for the fake's storage map. Real
     /// adapters use `DynamoEncoder` for this; we cheat with `Mirror`.
     private func extractPK<Model: DynamoModel>(of item: Model) -> String {
-        let pkName = Model._table.partitionKey
+        let pkName = Model._table.partitionKey.name
         let mirror = Mirror(reflecting: item)
         for child in mirror.children where child.label == pkName {
             return "\(child.value)"

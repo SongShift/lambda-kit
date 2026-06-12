@@ -109,10 +109,57 @@ public macro ExpressionValue<R: DynamoExpressionRepresentation>(
 ///     .execute(using: client)
 ///
 /// Multiple `@Index` declarations are supported on a single table. The
-/// macro merges them into the same `Indexes` namespace.
+/// macro merges them into the same `Indexes` namespace, and `@Table` exposes
+/// them all through the model's static `indexes` array.
+///
+/// Key names refer to on-the-wire attribute names (the `@Attribute` override
+/// when present, the Swift property name otherwise). The macro resolves each
+/// one against the model's properties and records its DynamoDB scalar type;
+/// `DynamoModel.createTableInput` in `DynamoQueriesSoto` builds `CreateTable`
+/// requests from the result.
 @attached(peer)
 public macro Index(
     _ name: String,
     partitionKey: String,
     sortKey: String? = nil
+) = #externalMacro(module: "DynamoQueriesMacros", type: "IndexMacro")
+
+/// Declares a secondary index with multi-attribute keys: up to four
+/// attributes hashed together as the partition key, and up to four more as a
+/// hierarchical sort key.
+///
+///     @Table("QuickShareLinks")
+///     @Index(
+///         "creatorId-isDeleted-isPrivate-isPinned-createdAt-index",
+///         partitionKeys: ["creatorId", "isDeleted", "isPrivate", "isPinned"],
+///         sortKeys: ["createdAt"]
+///     )
+///     struct QuickShareLink: Codable { ... }
+///
+/// DynamoDB requires equality on every partition-key attribute, and sort-key
+/// attributes constrained left-to-right with at most one trailing range
+/// condition:
+///
+///     try await QuickShareLink.query { link in
+///         Key {
+///             link.creatorId == creatorId
+///             link.isDeleted == 0
+///             link.isPrivate == 0
+///             link.isPinned == 1
+///             link.createdAt > cutoff
+///         }
+///     }
+///     .usingIndex(QuickShareLink.Indexes.creatorIdIsDeletedIsPrivateIsPinnedCreatedAtIndex)
+///     .execute(using: client)
+///
+/// Key attributes must encode as a DynamoDB scalar (`S`, `N`, or `B`), which
+/// the macro checks via ``DynamoKeyEncodable``. `Bool` properties don't
+/// qualify because they encode as `BOOL`; store key-participating flags as
+/// `Int`. See ``Index(_:partitionKey:sortKey:)`` for the single-attribute
+/// form.
+@attached(peer)
+public macro Index(
+    _ name: String,
+    partitionKeys: [String],
+    sortKeys: [String] = []
 ) = #externalMacro(module: "DynamoQueriesMacros", type: "IndexMacro")

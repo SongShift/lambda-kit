@@ -62,6 +62,11 @@ public struct MapImport: Codable {
 
 @Table("TrailShareLinks")
 @Index("creatorPublicProfileIndex", partitionKey: "creatorId")
+@Index(
+    "creatorId-isArchived-isPrivate-isPinned-createdAt-index",
+    partitionKeys: ["creatorId", "isArchived", "isPrivate", "isPinned"],
+    sortKeys: ["createdAt"]
+)
 public struct ShareLink: Codable {
     @PartitionKey
     public var linkId: String
