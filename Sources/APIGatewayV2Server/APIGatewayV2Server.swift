@@ -8,8 +8,11 @@ import AWSLambdaEvents
 import Foundation
 import HTTPTypes
 import Hummingbird
+import HummingbirdCore
+import HummingbirdTLS
 import Logging
 import NIOFoundationCompat
+import NIOSSL
 
 /// Local development HTTP server that proxies requests to a Lambda local server.
 /// Accepts real HTTP requests, translates them to `APIGatewayV2Request` JSON,
@@ -21,12 +24,15 @@ public struct APIGatewayV2Server: Sendable {
     private let lambdaHost: String
     private let lambdaPort: Int
     private let logger: Logger
+    private let tlsConfiguration: TLSConfiguration?
 
     public init(
         httpHost: String = "127.0.0.1",
         httpPort: Int,
         lambdaHost: String = "127.0.0.1",
         lambdaPort: Int,
+        tlsCertificatePath: String? = nil,
+        tlsPrivateKeyPath: String? = nil,
         logger: Logger = Logger(label: "APIGatewayV2Server"),
         requestTransformer: (any RequestTransformer)? = nil
     ) {
@@ -36,10 +42,22 @@ public struct APIGatewayV2Server: Sendable {
         self.lambdaPort = lambdaPort
         self.logger = logger
         self.requestTransformer = requestTransformer
+
+        if let tlsCertificatePath, let tlsPrivateKeyPath {
+            let certs = try! NIOSSLCertificate.fromPEMFile(tlsCertificatePath)
+            let privateKey = try! NIOSSLPrivateKey(file: tlsPrivateKeyPath, format: .pem)
+            self.tlsConfiguration = TLSConfiguration.makeServerConfiguration(
+                certificateChain: certs.map { .certificate($0) },
+                privateKey: .privateKey(privateKey)
+            )
+        } else {
+            self.tlsConfiguration = nil
+        }
     }
 
     public func run() async throws {
         let httpClient = HTTPClient(eventLoopGroupProvider: .singleton)
+        defer { _ = httpClient.shutdown() }
 
         let router = Router()
 
@@ -53,13 +71,22 @@ public struct APIGatewayV2Server: Sendable {
         var hbLogger = Logger(label: "HummingbirdCore")
         hbLogger.logLevel = .warning
 
+        let serverBuilder: HTTPServerBuilder
+        if let tlsConfiguration {
+            serverBuilder = try .tls(tlsConfiguration: tlsConfiguration)
+        } else {
+            serverBuilder = .http1()
+        }
+
         let app = Application(
             router: router,
+            server: serverBuilder,
             configuration: .init(address: .hostname(httpHost, port: httpPort)),
             logger: hbLogger
         )
 
-        self.logger.info("Listening on \(self.httpHost):\(self.httpPort) → \(self.lambdaHost):\(self.lambdaPort)/invoke")
+        let scheme = tlsConfiguration != nil ? "https" : "http"
+        self.logger.info("Listening on \(scheme)://\(self.httpHost):\(self.httpPort) → \(self.lambdaHost):\(self.lambdaPort)/invoke")
         try await app.runService()
     }
 
