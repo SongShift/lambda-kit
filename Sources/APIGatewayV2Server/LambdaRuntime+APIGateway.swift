@@ -43,30 +43,16 @@ public extension LambdaRuntime {
 
             group.addTask {
                 try await Task.sleep(for: .milliseconds(200))
-
-                let server: APIGatewayV2Server
-                if let tlsCertPath, let tlsKeyPath {
-                    server = try APIGatewayV2Server(
-                        httpHost: httpHost,
-                        httpPort: httpPort,
-                        lambdaHost: lambdaHost,
-                        lambdaPort: lambdaPort,
-                        tlsCertificatePath: tlsCertPath,
-                        tlsPrivateKeyPath: tlsKeyPath,
-                        logger: logger,
-                        requestTransformer: requestTransformer
-                    )
-                } else {
-                    server = APIGatewayV2Server(
-                        httpHost: httpHost,
-                        httpPort: httpPort,
-                        lambdaHost: lambdaHost,
-                        lambdaPort: lambdaPort,
-                        logger: logger,
-                        requestTransformer: requestTransformer
-                    )
-                }
-
+                let server = APIGatewayV2Server(
+                    httpHost: httpHost,
+                    httpPort: httpPort,
+                    lambdaHost: lambdaHost,
+                    lambdaPort: lambdaPort,
+                    tlsCertificatePath: tlsCertPath,
+                    tlsPrivateKeyPath: tlsKeyPath,
+                    logger: logger,
+                    requestTransformer: requestTransformer
+                )
                 try await server.run()
             }
 

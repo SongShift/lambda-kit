@@ -31,7 +31,8 @@ public struct APIGatewayV2Server: Sendable {
         httpPort: Int,
         lambdaHost: String = "127.0.0.1",
         lambdaPort: Int,
-        tlsConfiguration: TLSConfiguration? = nil,
+        tlsCertificatePath: String? = nil,
+        tlsPrivateKeyPath: String? = nil,
         logger: Logger = Logger(label: "APIGatewayV2Server"),
         requestTransformer: (any RequestTransformer)? = nil
     ) {
@@ -39,41 +40,24 @@ public struct APIGatewayV2Server: Sendable {
         self.httpPort = httpPort
         self.lambdaHost = lambdaHost
         self.lambdaPort = lambdaPort
-        self.tlsConfiguration = tlsConfiguration
         self.logger = logger
         self.requestTransformer = requestTransformer
-    }
 
-    public init(
-        httpHost: String = "127.0.0.1",
-        httpPort: Int,
-        lambdaHost: String = "127.0.0.1",
-        lambdaPort: Int,
-        tlsCertificatePath: String,
-        tlsPrivateKeyPath: String,
-        logger: Logger = Logger(label: "APIGatewayV2Server"),
-        requestTransformer: (any RequestTransformer)? = nil
-    ) throws {
-        let certs = try NIOSSLCertificate.fromPEMFile(tlsCertificatePath)
-        let privateKey = try NIOSSLPrivateKey(file: tlsPrivateKeyPath, format: .pem)
-        let tlsConfig = TLSConfiguration.makeServerConfiguration(
-            certificateChain: certs.map { .certificate($0) },
-            privateKey: .privateKey(privateKey)
-        )
-        self.init(
-            httpHost: httpHost,
-            httpPort: httpPort,
-            lambdaHost: lambdaHost,
-            lambdaPort: lambdaPort,
-            tlsConfiguration: tlsConfig,
-            logger: logger,
-            requestTransformer: requestTransformer
-        )
+        if let tlsCertificatePath, let tlsPrivateKeyPath {
+            let certs = try! NIOSSLCertificate.fromPEMFile(tlsCertificatePath)
+            let privateKey = try! NIOSSLPrivateKey(file: tlsPrivateKeyPath, format: .pem)
+            self.tlsConfiguration = TLSConfiguration.makeServerConfiguration(
+                certificateChain: certs.map { .certificate($0) },
+                privateKey: .privateKey(privateKey)
+            )
+        } else {
+            self.tlsConfiguration = nil
+        }
     }
 
     public func run() async throws {
         let httpClient = HTTPClient(eventLoopGroupProvider: .singleton)
-        defer { try? httpClient.syncShutdown() }
+        defer { _ = httpClient.shutdown() }
 
         let router = Router()
 
