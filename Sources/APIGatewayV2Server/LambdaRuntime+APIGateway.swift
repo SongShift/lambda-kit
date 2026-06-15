@@ -33,6 +33,8 @@ public extension LambdaRuntime {
         let lambdaPort = env["LOCAL_LAMBDA_PORT"].flatMap(Int.init) ?? 7000
         let httpHost = env["LOCAL_HTTP_HOST"] ?? "127.0.0.1"
         let httpPort = env["LOCAL_HTTP_PORT"].flatMap(Int.init) ?? 3000
+        let tlsCertPath = env["LOCAL_TLS_CERT_FILE"]
+        let tlsKeyPath = env["LOCAL_TLS_KEY_FILE"]
 
         try await withThrowingTaskGroup(of: Void.self) { group in
             group.addTask {
@@ -41,14 +43,30 @@ public extension LambdaRuntime {
 
             group.addTask {
                 try await Task.sleep(for: .milliseconds(200))
-                let server = APIGatewayV2Server(
-                    httpHost: httpHost,
-                    httpPort: httpPort,
-                    lambdaHost: lambdaHost,
-                    lambdaPort: lambdaPort,
-                    logger: logger,
-                    requestTransformer: requestTransformer
-                )
+
+                let server: APIGatewayV2Server
+                if let tlsCertPath, let tlsKeyPath {
+                    server = try APIGatewayV2Server(
+                        httpHost: httpHost,
+                        httpPort: httpPort,
+                        lambdaHost: lambdaHost,
+                        lambdaPort: lambdaPort,
+                        tlsCertificatePath: tlsCertPath,
+                        tlsPrivateKeyPath: tlsKeyPath,
+                        logger: logger,
+                        requestTransformer: requestTransformer
+                    )
+                } else {
+                    server = APIGatewayV2Server(
+                        httpHost: httpHost,
+                        httpPort: httpPort,
+                        lambdaHost: lambdaHost,
+                        lambdaPort: lambdaPort,
+                        logger: logger,
+                        requestTransformer: requestTransformer
+                    )
+                }
+
                 try await server.run()
             }
 
