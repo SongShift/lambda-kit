@@ -73,6 +73,7 @@ public struct APIGatewayV2Server: Sendable {
 
     public func run() async throws {
         let httpClient = HTTPClient(eventLoopGroupProvider: .singleton)
+        defer { try? httpClient.syncShutdown() }
 
         let router = Router()
 
