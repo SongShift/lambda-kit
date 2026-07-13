@@ -327,27 +327,36 @@ extension DynamoQueries.PutItemInput {
 
 public struct SotoDynamoClient: DynamoClient {
     private let database: DynamoDB
-    private let tableNameSuffix: String
+    private let tableNameResolver: @Sendable (String) -> String
 
     /// Creates a client.
     ///
     /// - Parameters:
     ///   - database: The underlying Soto `DynamoDB` service.
-    ///   - tableNameSuffix: Appended to every model's logical table name
-    ///     before the request hits the wire. Use this to route an entire
-    ///     deploy at a stage-specific table set. For example, pass
-    ///     `"-prod"` so a model declared as `@Table("Hikes")` reads and
-    ///     writes `"Hikes-prod"`. Default `""` is a no-op.
-    public init(database: DynamoDB, tableNameSuffix: String = "") {
+    ///   - resolveTableName: Maps every model's logical table name to the
+    ///     on-the-wire name before the request is sent. Use this to route
+    ///     an entire deploy at a stage-specific table set, e.g.
+    ///     `{ "\($0)-prod" }` so a model declared as `@Table("Hikes")`
+    ///     reads and writes `"Hikes-prod"`. Defaults to the identity.
+    public init(
+        database: DynamoDB,
+        resolveTableName: @escaping @Sendable (String) -> String = { $0 }
+    ) {
         self.database = database
-        self.tableNameSuffix = tableNameSuffix
+        self.tableNameResolver = resolveTableName
     }
 
-    /// Applies the configured suffix to a logical table name. Public so
+    /// Creates a client that appends `tableNameSuffix` to every model's
+    /// logical table name.
+    public init(database: DynamoDB, tableNameSuffix: String) {
+        self.init(database: database, resolveTableName: { $0 + tableNameSuffix })
+    }
+
+    /// Applies the configured resolver to a logical table name. Public so
     /// callers building bespoke Soto requests can match the adapter's
     /// rewrite.
     public func resolveTableName(_ name: String) -> String {
-        name + tableNameSuffix
+        tableNameResolver(name)
     }
 
     public func execute<Model: DynamoModel>(
