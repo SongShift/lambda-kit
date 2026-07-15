@@ -1,9 +1,10 @@
 # LambdaKit
 
-LambdaKit is a toolkit for writing AWS Lambda services in Swift. It has two
-libraries that ship independently: `Routing`, a typed request router for the
-API Gateway HTTP and WebSocket event shapes, and `DynamoQueries`, a typed
-DynamoDB query DSL. Pull in one or both.
+LambdaKit is a toolkit for writing AWS Lambda services in Swift. Its libraries
+ship independently: `Routing`, a typed request router for the API Gateway HTTP
+and WebSocket event shapes; `DynamoQueries`, a typed DynamoDB query DSL; and
+`APIGatewayV2Server`, a local development server that fronts your Lambda with
+real HTTP. Pull in what you need.
 
 ## Routing
 
@@ -89,6 +90,60 @@ for try await page in query.pages(using: client) {
 `executeAll(using:)` collects every page. Writes, conditional checks, updates,
 and batch and transactional operations are covered in the
 [DynamoQueries documentation](Sources/DynamoQueries/Documentation.docc).
+
+## APIGatewayV2Server
+
+`APIGatewayV2Server` lets you run and exercise your Lambda locally with plain
+HTTP — no API Gateway, SAM, or event JSON required. It starts an HTTP server
+alongside the Lambda runtime's local server, translates each incoming request
+into `APIGatewayV2Request` JSON, and POSTs it to the runtime's `/invoke`
+endpoint, so `curl` and your app talk to the Lambda exactly as API Gateway
+would.
+
+The simplest way to use it is the `runWithAPIGateway()` extension on
+`LambdaRuntime`, which runs both servers together:
+
+```swift
+import APIGatewayV2Server
+import AWSLambdaRuntime
+
+let runtime = LambdaRuntime { (event: APIGatewayV2Request, ctx: LambdaContext) in
+    // your handler
+}
+
+#if DEBUG
+try await runtime.runWithAPIGateway()
+#else
+try await runtime.run()
+#endif
+```
+
+By default the HTTP server listens on port `3000` and the Lambda runtime on
+port `7000`. Both are configurable through environment variables:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `LOCAL_HTTP_HOST` / `LOCAL_HTTP_PORT` | `127.0.0.1` / `3000` | Where the HTTP server listens |
+| `LOCAL_LAMBDA_HOST` / `LOCAL_LAMBDA_PORT` | `127.0.0.1` / `7000` | Where the Lambda runtime's `/invoke` endpoint lives |
+| `LOCAL_TLS_CERT_FILE` / `LOCAL_TLS_KEY_FILE` | unset | PEM certificate chain and private key; set both to serve HTTPS |
+
+To simulate what API Gateway adds before your handler sees a request — an
+authorizer context, custom headers, a stage prefix — pass a
+`RequestTransformer`, which gets to mutate each translated request before it
+is forwarded:
+
+```swift
+struct AuthTransformer: RequestTransformer {
+    func transform(_ request: inout MutableAPIGatewayV2Request) async {
+        request.context.authorizer = .init(jwt: myLocalJWTClaims)
+    }
+}
+
+try await runtime.runWithAPIGateway(requestTransformer: AuthTransformer())
+```
+
+You can also construct and run an `APIGatewayV2Server` directly if you manage
+the Lambda runtime process yourself.
 
 ## Examples
 
