@@ -6,6 +6,28 @@ and WebSocket event shapes; `DynamoQueries`, a typed DynamoDB query DSL; and
 `APIGatewayV2Server`, a local development server that fronts your Lambda with
 real HTTP. Pull in what you need.
 
+## Installation
+
+Add LambdaKit as a Swift Package Manager dependency:
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/SongShift/lambda-kit.git", branch: "main")
+]
+```
+
+Then pull in the products you need:
+
+```swift
+.product(name: "Routing", package: "lambda-kit"),
+.product(name: "DynamoQueries", package: "lambda-kit"),
+.product(name: "DynamoQueriesSoto", package: "lambda-kit"),
+.product(name: "APIGatewayV2Server", package: "lambda-kit"),
+```
+
+LambdaKit requires Swift 6.2+ and macOS 15+ (or AWS Lambda's Amazon Linux 2 / 2023
+runtime when deployed).
+
 ## Routing
 
 Build the router once at cold start, then dispatch every invocation through it:
@@ -127,15 +149,15 @@ port `7000`. Both are configurable through environment variables:
 | `LOCAL_LAMBDA_HOST` / `LOCAL_LAMBDA_PORT` | `127.0.0.1` / `7000` | Where the Lambda runtime's `/invoke` endpoint lives |
 | `LOCAL_TLS_CERT_FILE` / `LOCAL_TLS_KEY_FILE` | unset | PEM certificate chain and private key; set both to serve HTTPS |
 
-To simulate what API Gateway adds before your handler sees a request — an
-authorizer context, custom headers, a stage prefix — pass a
+To simulate what API Gateway adds before your handler sees a request —
+authentication headers, an authorizer context, a stage prefix — pass a
 `RequestTransformer`, which gets to mutate each translated request before it
 is forwarded:
 
 ```swift
 struct AuthTransformer: RequestTransformer {
     func transform(_ request: inout MutableAPIGatewayV2Request) async {
-        request.context.authorizer = .init(jwt: myLocalJWTClaims)
+        request.headers["x-user-id"] = "local-user"
     }
 }
 
@@ -167,26 +189,9 @@ swift package generate-documentation --target DynamoQueries
 
 Or open the package in Xcode and use **Product > Build Documentation**.
 
-## Installation
+## Contributing
 
-Add LambdaKit as a Swift Package Manager dependency:
-
-```swift
-dependencies: [
-    .package(url: "https://github.com/SongShift/lambda-kit.git", branch: "main")
-]
-```
-
-Then pull in the products you need:
-
-```swift
-.product(name: "Routing", package: "lambda-kit"),
-.product(name: "DynamoQueries", package: "lambda-kit"),
-.product(name: "DynamoQueriesSoto", package: "lambda-kit"),
-```
-
-LambdaKit requires Swift 6.2+ and macOS 15+ (or AWS Lambda's Amazon Linux 2 / 2023
-runtime when deployed).
+Contributions are welcome. Please open an issue or submit a pull request.
 
 ## License
 
