@@ -132,3 +132,7 @@ Then pull in the products you need:
 
 LambdaKit requires Swift 6.2+ and macOS 15+ (or AWS Lambda's Amazon Linux 2 / 2023
 runtime when deployed).
+
+## License
+
+This project is licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.
