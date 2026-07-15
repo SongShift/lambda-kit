@@ -130,5 +130,5 @@ Then pull in the products you need:
 .product(name: "DynamoQueriesSoto", package: "lambda-kit"),
 ```
 
-LambdaKit requires Swift 6.2+ and macOS 15+ (or AWS Lambda's Amazon Linux 2
+LambdaKit requires Swift 6.2+ and macOS 15+ (or AWS Lambda's Amazon Linux 2 / 2023
 runtime when deployed).
