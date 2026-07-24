@@ -66,6 +66,11 @@ public extension HTTPRequest {
         self.route(method: "PATCH", path: path)
     }
 
+    /// Build a routing key for an `OPTIONS` route.
+    static func options(_ path: String) -> [String] {
+        self.route(method: "OPTIONS", path: path)
+    }
+
     /// The routing key used to dispatch this request. Symmetric with the static
     /// factories above, both go through `route(method:path:)`.
     ///
@@ -121,6 +126,14 @@ public extension RouterBuilder where R == HTTPRequest,
         use handler: @Sendable @escaping (HTTPRequest, Logger) async throws -> RouteResponse
     ) {
         self.on(HTTPRequest.delete(path), use: handler)
+    }
+
+    /// Register an `OPTIONS` handler at the given path.
+    func options(
+        _ path: String,
+        use handler: @Sendable @escaping (HTTPRequest, Logger) async throws -> RouteResponse
+    ) {
+        self.on(HTTPRequest.options(path), use: handler)
     }
 }
 
@@ -187,5 +200,14 @@ public extension RouteGroup where R == HTTPRequest,
         use handler: @Sendable @escaping (M.Output, Body, Logger) async throws -> RouteResponse
     ) {
         self.on(HTTPRequest.patch(path), body: body, use: handler)
+    }
+
+    /// Register an `OPTIONS` handler at the given path, running this group's middleware
+    /// first.
+    func options(
+        _ path: String,
+        use handler: @Sendable @escaping (M.Output, Logger) async throws -> RouteResponse
+    ) {
+        self.on(HTTPRequest.options(path), use: handler)
     }
 }
