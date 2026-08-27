@@ -44,6 +44,6 @@ struct RouterBodyDecodingTests {
             logger: .testing
         )
         #expect(response.statusCode == .badRequest)
-        #expect(response.body?.contains("Invalid request body") == true)
+        #expect(response.body?.contains("The request body could not be decoded.") == true)
     }
 }
