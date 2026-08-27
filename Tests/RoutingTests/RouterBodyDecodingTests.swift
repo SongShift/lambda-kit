@@ -8,7 +8,7 @@ import Logging
 import Routing
 import Testing
 
-@Suite("Router+bodyDecoding")
+@Suite("Router+BodyDecodingTests")
 struct RouterBodyDecodingTests {
     struct Input: Decodable, Sendable {
         let id: String
