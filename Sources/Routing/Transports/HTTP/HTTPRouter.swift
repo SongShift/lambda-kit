@@ -135,6 +135,44 @@ public extension RouterBuilder where R == HTTPRequest,
     ) {
         self.on(HTTPRequest.options(path), use: handler)
     }
+
+    /// Register a `POST` handler at the given path.
+    func post(
+        _ path: String,
+        use handler: @Sendable @escaping (HTTPRequest, Logger) async throws -> RouteResponse
+    ) {
+        self.on(HTTPRequest.post(path), use: handler)
+    }
+
+    /// Register a `POST` handler at the given path, JSON-decoding the request body
+    /// into `Body` before invoking the handler.
+    func post<Body: Decodable & Sendable>(
+        _ path: String,
+        body: Body.Type,
+        use handler: @Sendable @escaping (HTTPRequest, Body, Logger) async throws -> RouteResponse
+    ) {
+        self.on(HTTPRequest.post(path), body: body, use: handler)
+    }
+
+    /// Register a `PUT` handler at the given path, JSON-decoding the request body
+    /// into `Body` before invoking the handler.
+    func put<Body: Decodable & Sendable>(
+        _ path: String,
+        body: Body.Type,
+        use handler: @Sendable @escaping (HTTPRequest, Body, Logger) async throws -> RouteResponse
+    ) {
+        self.on(HTTPRequest.put(path), body: body, use: handler)
+    }
+
+    /// Register a `PATCH` handler at the given path, JSON-decoding the request body
+    /// into `Body` before invoking the handler.
+    func patch<Body: Decodable & Sendable>(
+        _ path: String,
+        body: Body.Type,
+        use handler: @Sendable @escaping (HTTPRequest, Body, Logger) async throws -> RouteResponse
+    ) {
+        self.on(HTTPRequest.patch(path), body: body, use: handler)
+    }
 }
 
 // MARK: - RouteGroup HTTP sugar

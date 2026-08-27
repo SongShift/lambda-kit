@@ -49,14 +49,3 @@ public struct Headers: Sendable {
         Set(self.values.keys)
     }
 }
-
-public enum HeaderError: Error {
-    case missing(String)
-
-    public var message: String {
-        switch self {
-        case let .missing(name):
-            "Missing required header: \(name)"
-        }
-    }
-}

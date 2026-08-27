@@ -61,6 +61,21 @@ public final class RouterBuilder<R: Routable, Engine: RoutingKit.RouterBuilder>
         }
     }
 
+    /// Register a handler at a routing key, JSON-decoding the request body into
+    /// `Body` before invoking the handler.
+    ///
+    /// Available for any `Routable` whose `body: Data` carries JSON. The HTTP and
+    /// WebSocket adapters both qualify.
+    public func on<Body: Decodable & Sendable>(
+        _ key: [String],
+        body: Body.Type,
+        use handler: @Sendable @escaping (R, Body, Logger) async throws -> RouteResponse
+    ) {
+        self.on(key) { request, logger in
+            try await handler(request, Self.decodeBody(Body.self, from: request), logger)
+        }
+    }
+
     // MARK: - Routes through middleware
 
     /// Register a handler at a routing key, running it through middleware first.
@@ -76,9 +91,6 @@ public final class RouterBuilder<R: Routable, Engine: RoutingKit.RouterBuilder>
 
     /// Register a handler at a routing key, running middleware and then JSON-decoding
     /// the request body into `Body` before invoking the handler.
-    ///
-    /// Available for any `Routable` whose `body: Data` carries JSON. The HTTP and
-    /// WebSocket adapters both qualify.
     public func on<M: MiddlewareProtocol, Body: Decodable & Sendable>(
         _ key: [String],
         through middleware: M,
@@ -87,9 +99,18 @@ public final class RouterBuilder<R: Routable, Engine: RoutingKit.RouterBuilder>
     ) where M.Input == R {
         self.on(key) { request, logger in
             try await middleware.handle(request, next: { output, logger in
-                let decoded = try JSONDecoder().decode(Body.self, from: request.body)
-                return try await handler(output, decoded, logger)
+                try await handler(output, Self.decodeBody(Body.self, from: request), logger)
             }, logger: logger)
+        }
+    }
+
+    /// Decode a JSON request body, wrapping failures in `RequestBodyError` so
+    /// `Router.handle` can map them to `400 Bad Request`.
+    private static func decodeBody<Body: Decodable>(_ type: Body.Type, from request: R) throws -> Body {
+        do {
+            return try JSONDecoder().decode(Body.self, from: request.body)
+        } catch {
+            throw RequestBodyError.decodingFailed(error)
         }
     }
 
@@ -158,6 +179,8 @@ public final class Router<R: Routable>: Sendable {
         } catch let error as QueryParameterError {
             return .error(statusCode: .badRequest, message: error.message)
         } catch let error as HeaderError {
+            return .error(statusCode: .badRequest, message: error.message)
+        } catch let error as RequestBodyError {
             return .error(statusCode: .badRequest, message: error.message)
         } catch {
             return .error(statusCode: .internalServerError, message: "Internal server error")
