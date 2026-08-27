@@ -92,6 +92,13 @@ let package = Package(
             ]
         ),
         .testTarget(
+            name: "RoutingTests",
+            dependencies: [
+                "Routing",
+                .product(name: "AWSLambdaEvents", package: "swift-aws-lambda-events"),
+            ]
+        ),
+        .testTarget(
             name: "DynamoQueriesMacrosTests",
             dependencies: [
                 "DynamoQueriesMacros",

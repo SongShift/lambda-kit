@@ -51,17 +51,3 @@ public struct PathParameters: Sendable {
         self.values[name] = value
     }
 }
-
-public enum PathParameterError: Error {
-    case missing(String)
-    case invalidType(name: String, value: String, expectedType: String)
-
-    public var message: String {
-        switch self {
-        case let .missing(name):
-            "Missing required path parameter: \(name)"
-        case let .invalidType(name, value, expectedType):
-            "Path parameter '\(name)' value '\(value)' is not a valid \(expectedType)"
-        }
-    }
-}
