@@ -17,3 +17,4 @@ DerivedData/
 .netrc
 node_modules/
 .claude/
+Package.resolved
