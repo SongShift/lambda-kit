@@ -39,7 +39,7 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
         .package(
             url: "https://github.com/awslabs/swift-aws-lambda-runtime",
-            from: "2.6.2"
+            from: "3.0.1"
         ),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.6.0"),
         .package(url: "https://github.com/hummingbird-project/hummingbird.git", from: "2.0.0"),
