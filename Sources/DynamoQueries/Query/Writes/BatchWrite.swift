@@ -1,4 +1,4 @@
-import Logging
+public import Logging
 
 /// A multi-item write against a single table: up to 25 items (puts +
 /// deletes combined) per DynamoDB request, 16MB total. Adapters retry the

@@ -1,4 +1,4 @@
-import DynamoQueries
+public import DynamoQueries
 import Foundation
 
 /// A DynamoDB request that can render itself to a deterministic, human-readable

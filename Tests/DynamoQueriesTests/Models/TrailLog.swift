@@ -1,7 +1,7 @@
-import DynamoQueries
+public import DynamoQueries
 import DynamoQueriesSoto
-import Foundation
-import SotoDynamoDB
+public import Foundation
+public import SotoDynamoDB
 
 
 // Binary keys in the source are modeled as `String` here: DynamoQueries'

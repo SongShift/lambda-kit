@@ -1,5 +1,5 @@
-import DynamoQueries
-import Logging
+public import DynamoQueries
+public import Logging
 
 /// A programmable `DynamoClient` test double: a **stub + spy**. It never talks
 /// to DynamoDB; instead it:
@@ -74,10 +74,10 @@ public actor RecordingDynamoClient: DynamoClient {
 
     // MARK: - Injected errors
 
-    private var putErrors: [ObjectIdentifier: Error] = [:]
-    private var updateErrors: [ObjectIdentifier: Error] = [:]
-    private var deleteErrors: [ObjectIdentifier: Error] = [:]
-    private var transactWriteError: Error?
+    private var putErrors: [ObjectIdentifier: any Error] = [:]
+    private var updateErrors: [ObjectIdentifier: any Error] = [:]
+    private var deleteErrors: [ObjectIdentifier: any Error] = [:]
+    private var transactWriteError: (any Error)?
 
     // MARK: - DynamoClient
 
@@ -243,19 +243,19 @@ public actor RecordingDynamoClient: DynamoClient {
 
     // MARK: - Error injection
 
-    public func throwOnPut<Model: DynamoModel>(_ error: Error, for type: Model.Type) {
+    public func throwOnPut<Model: DynamoModel>(_ error: any Error, for type: Model.Type) {
         putErrors[ObjectIdentifier(type)] = error
     }
 
-    public func throwOnUpdate<Model: DynamoModel>(_ error: Error, for type: Model.Type) {
+    public func throwOnUpdate<Model: DynamoModel>(_ error: any Error, for type: Model.Type) {
         updateErrors[ObjectIdentifier(type)] = error
     }
 
-    public func throwOnDelete<Model: DynamoModel>(_ error: Error, for type: Model.Type) {
+    public func throwOnDelete<Model: DynamoModel>(_ error: any Error, for type: Model.Type) {
         deleteErrors[ObjectIdentifier(type)] = error
     }
 
-    public func throwOnTransactWrite(_ error: Error) {
+    public func throwOnTransactWrite(_ error: any Error) {
         transactWriteError = error
     }
 
@@ -358,7 +358,7 @@ public actor RecordingDynamoClient: DynamoClient {
     }
 
     private func throwIfPrimed<Model: DynamoModel>(
-        _ errors: inout [ObjectIdentifier: Error],
+        _ errors: inout [ObjectIdentifier: any Error],
         _ type: Model.Type
     ) throws {
         if let error = errors.removeValue(forKey: ObjectIdentifier(type)) {

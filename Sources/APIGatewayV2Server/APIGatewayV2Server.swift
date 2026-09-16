@@ -10,8 +10,9 @@ import HTTPTypes
 import Hummingbird
 import HummingbirdCore
 import HummingbirdTLS
-import Logging
+public import Logging
 import NIOFoundationCompat
+import NIOHTTP1
 import NIOSSL
 
 /// Local development HTTP server that proxies requests to a Lambda local server.

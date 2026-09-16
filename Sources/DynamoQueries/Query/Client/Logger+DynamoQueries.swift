@@ -1,4 +1,4 @@
-import Logging
+public import Logging
 
 public extension Logger {
     /// The logger DynamoQueries `execute` calls use when the caller doesn't

@@ -1,4 +1,4 @@
-import DynamoQueries
+public import DynamoQueries
 import SotoDynamoDB
 
 /// The default `DynamoExpressionRepresentation` for `Codable` aggregates:

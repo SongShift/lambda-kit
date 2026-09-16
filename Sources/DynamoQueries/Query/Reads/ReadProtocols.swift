@@ -1,4 +1,4 @@
-import Logging
+public import Logging
 
 /// Read abstractions that let a call site name *what a read delivers* without
 /// naming *how it's stored*. Each has a primary associated type `Output`, so a

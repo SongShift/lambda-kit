@@ -1,4 +1,4 @@
-import Logging
+public import Logging
 
 /// A single-item lookup keyed by primary key, parameterized by the model it
 /// returns.

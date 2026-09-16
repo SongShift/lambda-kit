@@ -1,6 +1,6 @@
-import DynamoQueries
+public import DynamoQueries
 import Logging
-import SotoDynamoDB
+public import SotoDynamoDB
 
 // MARK: - Schema → CreateTable
 //

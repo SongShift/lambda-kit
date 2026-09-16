@@ -1,4 +1,4 @@
-import Foundation
+public import Foundation
 
 /// A value matching one of DynamoDB's attribute-value variants.
 ///
@@ -42,7 +42,7 @@ extension DynamoValue: Codable {
         case binarySet = "BS"
     }
 
-    public init(from decoder: Decoder) throws {
+    public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         if let value = try container.decodeIfPresent(String.self, forKey: .string) {
             self = .string(value)
@@ -89,7 +89,7 @@ extension DynamoValue: Codable {
         }
     }
 
-    public func encode(to encoder: Encoder) throws {
+    public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         switch self {
         case .string(let value): try container.encode(value, forKey: .string)

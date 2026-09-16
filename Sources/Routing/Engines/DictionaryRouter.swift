@@ -16,7 +16,7 @@
 //  protocols so that it can plug into our generic `RouterBuilder<R, Engine>` as
 //  the `Engine` parameter, identically to how `TrieRouter` does.
 
-import RoutingKit
+public import RoutingKit
 
 // MARK: - DictionaryRouterBuilder
 

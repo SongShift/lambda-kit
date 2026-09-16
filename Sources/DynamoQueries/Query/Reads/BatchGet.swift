@@ -1,4 +1,4 @@
-import Logging
+public import Logging
 
 /// A multi-key read against a single table. Up to 100 keys per DynamoDB
 /// request, 16MB total per response. Adapters auto-retry the

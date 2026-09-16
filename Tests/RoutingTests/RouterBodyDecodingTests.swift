@@ -4,6 +4,7 @@
 //  Copyright © 2026 SongShift, LLC. All rights reserved.
 //
 
+import HTTPTypes
 import Logging
 import Routing
 import Testing

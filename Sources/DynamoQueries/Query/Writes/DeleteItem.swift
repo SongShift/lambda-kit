@@ -1,4 +1,4 @@
-import Logging
+public import Logging
 
 /// A delete request for a single item, addressed by primary key. Optionally
 /// guarded by a condition expression. The delete only fires if the

@@ -1,4 +1,4 @@
-import Foundation
+public import Foundation
 
 /// The DynamoDB scalar type of a key attribute.
 ///

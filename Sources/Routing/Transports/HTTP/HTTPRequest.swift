@@ -5,8 +5,8 @@
 //  Copyright © 2026 SongShift, LLC. All rights reserved.
 //
 
-import AWSLambdaEvents
-import Foundation
+public import AWSLambdaEvents
+public import Foundation
 
 /// An HTTP request, modeled as a thin `@dynamicMemberLookup` wrapper around an
 /// AWS Lambda `APIGatewayV2Request` event.

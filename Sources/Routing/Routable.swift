@@ -5,7 +5,7 @@
 //  Copyright © 2026 SongShift, LLC. All rights reserved.
 //
 
-import Foundation
+public import Foundation
 
 /// A type that can be routed through a `Router`.
 ///
