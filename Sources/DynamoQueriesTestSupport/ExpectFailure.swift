@@ -1,4 +1,4 @@
-import DynamoQueries
+public import DynamoQueries
 
 /// Run `operation` against a real `DynamoClient`, asserting it fails with a
 /// ``ConditionalCheckFailed`` parameterized by `Model`. Returns the typed

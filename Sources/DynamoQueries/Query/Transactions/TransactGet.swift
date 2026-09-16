@@ -1,4 +1,4 @@
-import Logging
+public import Logging
 
 /// A primary-key read leg that can be composed into a `TransactGet { ... }`
 /// block *or* executed on its own. Both a plain `GetItemInput` and a mapped

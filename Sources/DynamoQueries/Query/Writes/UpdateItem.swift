@@ -1,4 +1,4 @@
-import Logging
+public import Logging
 
 /// A targeted update against an existing item, identified by its primary
 /// key. Unlike `PutItem`, `UpdateItem` modifies only the attributes named in

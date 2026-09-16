@@ -24,8 +24,9 @@
 //  the problem.
 //
 
-import Logging
-import RoutingKit
+import AWSLambdaEvents
+public import Logging
+public import RoutingKit
 
 // MARK: - WebSocketRequest: routing key convention
 

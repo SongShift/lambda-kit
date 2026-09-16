@@ -177,12 +177,12 @@ struct DynamoCoderTests {
                 self.id = id
                 self.nickname = nickname
             }
-            init(from decoder: Decoder) throws {
+            init(from decoder: any Decoder) throws {
                 let c = try decoder.container(keyedBy: CodingKeys.self)
                 self.id = try c.decode(String.self, forKey: .id)
                 self.nickname = try c.decodeIfPresent(String.self, forKey: .nickname)
             }
-            func encode(to encoder: Encoder) throws {
+            func encode(to encoder: any Encoder) throws {
                 var c = encoder.container(keyedBy: CodingKeys.self)
                 try c.encode(id, forKey: .id)
                 // Force-write nil so we exercise the encodeNil path rather

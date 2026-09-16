@@ -1,10 +1,11 @@
 import SwiftSyntaxMacros
+import SwiftSyntaxMacrosGenericTestSupport
 import SwiftSyntaxMacrosTestSupport
 import XCTest
 
 @testable import DynamoQueriesMacros
 
-private let testMacros: [String: Macro.Type] = [
+private let testMacros: [String: any Macro.Type] = [
     "Table": TableMacro.self,
     "Index": IndexMacro.self,
     "PartitionKey": PartitionKeyMacro.self,

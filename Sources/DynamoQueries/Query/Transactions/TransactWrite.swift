@@ -1,4 +1,4 @@
-import Logging
+public import Logging
 
 /// Thrown by `TransactWriteInput.execute(using:)` when DynamoDB cancels the
 /// whole transaction. Reports the per-leg cancellation reasons in the same

@@ -25,8 +25,10 @@
 //  `DictionaryRouter` engine instead, since WebSocket route keys are flat.
 //
 
-import Logging
-import RoutingKit
+import AWSLambdaEvents
+import HTTPTypes
+public import Logging
+public import RoutingKit
 
 // MARK: - HTTPRequest: routing key convention
 

@@ -1,4 +1,4 @@
-import Logging
+public import Logging
 
 /// Mapped read inputs: the result of calling `.map` on a *collection / paged*
 /// read (`QueryInput`, `ScanInput`, `BatchGetInput`) or on `UpdateReturning`.
@@ -42,8 +42,12 @@ public struct MappedPageSequence<
         var base: Base.AsyncIterator
         let transform: @Sendable (Model) throws -> Output
 
-        public mutating func next() async throws -> QueryPage<Output>? {
-            guard let page = try await base.next() else { return nil }
+        public mutating func next(
+            isolation actor: isolated (any Actor)?
+        ) async throws -> QueryPage<Output>? {
+            guard let page = try await base.next(isolation: actor) else {
+                return nil
+            }
             return try page.map(transform)
         }
     }

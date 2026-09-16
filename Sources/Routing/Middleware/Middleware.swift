@@ -5,7 +5,7 @@
 //  Copyright © 2026 SongShift, LLC. All rights reserved.
 //
 
-import Logging
+public import Logging
 
 // MARK: - MiddlewareContext
 

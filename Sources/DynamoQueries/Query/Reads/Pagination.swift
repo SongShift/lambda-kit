@@ -37,7 +37,7 @@ public struct PaginationToken: Sendable, Equatable {
 }
 
 extension PaginationToken: Codable {
-    public init(from decoder: Decoder) throws {
+    public init(from decoder: any Decoder) throws {
         let container = try decoder.singleValueContainer()
         let string = try container.decode(String.self)
         guard let token = PaginationToken(string: string) else {
@@ -49,7 +49,7 @@ extension PaginationToken: Codable {
         self = token
     }
 
-    public func encode(to encoder: Encoder) throws {
+    public func encode(to encoder: any Encoder) throws {
         var container = encoder.singleValueContainer()
         try container.encode(self.stringValue)
     }

@@ -1,5 +1,5 @@
-import DynamoQueries
-import Logging
+public import DynamoQueries
+public import Logging
 
 /// A `DynamoClient` whose whole job is to **fail**, so you can test how a
 /// repository or service reacts when DynamoDB errors. It throws a configured

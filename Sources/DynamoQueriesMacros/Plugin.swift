@@ -3,7 +3,7 @@ import SwiftSyntaxMacros
 
 @main
 struct DynamoKitMacrosPlugin: CompilerPlugin {
-    let providingMacros: [Macro.Type] = [
+    let providingMacros: [any Macro.Type] = [
         TableMacro.self,
         PartitionKeyMacro.self,
         SortKeyMacro.self,

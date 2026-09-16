@@ -7,7 +7,9 @@
 //  and short-circuit with `401` on failure.
 //
 
+import AWSLambdaEvents
 import Foundation
+import HTTPTypes
 import Logging
 import Routing
 
@@ -16,8 +18,8 @@ import Routing
 /// through unchanged.
 struct LoggingMiddleware: MiddlewareProtocol {
     func handle(
-        _ input: HTTPRequest,
-        next: @Sendable (HTTPRequest, Logger) async throws -> RouteResponse,
+        _ input: Routing.HTTPRequest,
+        next: @Sendable (Routing.HTTPRequest, Logger) async throws -> RouteResponse,
         logger: Logger
     ) async throws -> RouteResponse {
         let method = input.event.context.http.method.rawValue
@@ -33,7 +35,7 @@ struct LoggingMiddleware: MiddlewareProtocol {
 /// `HikerID`. A production middleware would verify a JWT against an
 /// identity provider and short-circuit with `401` on failure.
 struct AuthMiddleware: Middleware {
-    typealias Input = HTTPRequest
+    typealias Input = Routing.HTTPRequest
     typealias Value = HikerID
 
     struct HikerID: Sendable, Codable {
@@ -41,7 +43,7 @@ struct AuthMiddleware: Middleware {
     }
 
     func process(
-        _ input: HTTPRequest,
+        _ input: Routing.HTTPRequest,
         logger _: Logger
     ) async throws -> MiddlewareAction<HikerID> {
         .next(HikerID(value: "demo-hiker"))

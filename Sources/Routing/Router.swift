@@ -6,8 +6,9 @@
 //
 
 import Foundation
-import Logging
-import RoutingKit
+public import Logging
+import HTTPTypes
+public import RoutingKit
 
 /// The handler signature stored at every routing key for `Routable` `R`.
 public typealias RouteHandler<R: Routable> = @Sendable (R, Logger) async throws -> RouteResponse

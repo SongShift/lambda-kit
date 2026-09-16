@@ -39,7 +39,7 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
         .package(
             url: "https://github.com/awslabs/swift-aws-lambda-runtime",
-            from: "2.6.2"
+            from: "3.0.1"
         ),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.6.0"),
         .package(url: "https://github.com/hummingbird-project/hummingbird.git", from: "2.0.0"),
@@ -53,25 +53,25 @@ let package = Package(
                 .product(name: "RoutingKit", package: "routing-kit"),
                 .product(name: "HTTPTypes", package: "swift-http-types"),
                 .product(name: "AWSLambdaEvents", package: "swift-aws-lambda-events"),
-            ]
+            ],
         ),
         .target(
             name: "DynamoQueries",
             dependencies: [
                 "DynamoQueriesMacros",
                 .product(name: "Logging", package: "swift-log"),
-            ]
+            ],
         ),
         .target(
             name: "DynamoQueriesSoto",
             dependencies: [
                 "DynamoQueries",
                 .product(name: "SotoDynamoDB", package: "soto"),
-            ]
+            ],
         ),
         .target(
             name: "DynamoQueriesTestSupport",
-            dependencies: ["DynamoQueries"]
+            dependencies: ["DynamoQueries"],
         ),
         .target(
             name: "DynamoQueriesSnapshotTesting",
@@ -80,7 +80,7 @@ let package = Package(
                 "DynamoQueriesTestSupport",
                 .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
                 .product(name: "InlineSnapshotTesting", package: "swift-snapshot-testing"),
-            ]
+            ],
         ),
         .macro(
             name: "DynamoQueriesMacros",
@@ -89,21 +89,21 @@ let package = Package(
                 .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
                 .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
                 .product(name: "SwiftParser", package: "swift-syntax"),
-            ]
+            ],
         ),
         .testTarget(
             name: "RoutingTests",
             dependencies: [
                 "Routing",
                 .product(name: "AWSLambdaEvents", package: "swift-aws-lambda-events"),
-            ]
+            ],
         ),
         .testTarget(
             name: "DynamoQueriesMacrosTests",
             dependencies: [
                 "DynamoQueriesMacros",
                 .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
-            ]
+            ],
         ),
         .testTarget(
             name: "DynamoQueriesTests",
@@ -114,7 +114,7 @@ let package = Package(
                 "DynamoQueriesSnapshotTesting",
                 .product(name: "SotoDynamoDB", package: "soto"),
                 .product(name: "InlineSnapshotTesting", package: "swift-snapshot-testing"),
-            ]
+            ],
         ),
         .executableTarget(
             name: "RoutingDemo",
@@ -123,12 +123,12 @@ let package = Package(
                 .product(name: "AWSLambdaEvents", package: "swift-aws-lambda-events"),
                 .product(name: "AWSLambdaRuntime", package: "swift-aws-lambda-runtime"),
             ],
-            path: "Examples/RoutingDemo/Sources"
+            path: "Examples/RoutingDemo/Sources",
         ),
         .executableTarget(
             name: "DynamoQueriesDemo",
             dependencies: ["DynamoQueries", "DynamoQueriesTestSupport"],
-            path: "Examples/DynamoQueriesDemo/Sources"
+            path: "Examples/DynamoQueriesDemo/Sources",
         ),
         .executableTarget(
             name: "TrailLogDemo",
@@ -138,7 +138,7 @@ let package = Package(
                 .product(name: "AWSLambdaEvents", package: "swift-aws-lambda-events"),
                 .product(name: "AWSLambdaRuntime", package: "swift-aws-lambda-runtime"),
             ],
-            path: "Examples/TrailLog/Sources"
+            path: "Examples/TrailLog/Sources",
         ),
         .target(
             name: "APIGatewayV2Server",
@@ -150,7 +150,19 @@ let package = Package(
                 .product(name: "HummingbirdTLS", package: "hummingbird"),
                 .product(name: "Logging", package: "swift-log"),
                 .product(name: "AsyncHTTPClient", package: "async-http-client"),
-            ]
+            ],
         ),
     ]
 )
+
+for target in package.targets {
+  target.swiftSettings = target.swiftSettings ?? []
+  target.swiftSettings?.append(contentsOf: [
+    .enableUpcomingFeature("ExistentialAny"),
+    .enableUpcomingFeature("ImmutableWeakCaptures"),
+    .enableUpcomingFeature("InferIsolatedConformances"),
+    .enableUpcomingFeature("InternalImportsByDefault"),
+    .enableUpcomingFeature("MemberImportVisibility"),
+    .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
+  ])
+}

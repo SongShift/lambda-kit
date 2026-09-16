@@ -1,4 +1,4 @@
-import Logging
+public import Logging
 
 /// A compiled DynamoDB Scan request, parameterized by the model it returns.
 ///

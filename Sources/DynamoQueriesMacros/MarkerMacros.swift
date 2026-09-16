@@ -1,5 +1,5 @@
-import SwiftSyntax
-import SwiftSyntaxMacros
+public import SwiftSyntax
+public import SwiftSyntaxMacros
 
 /// Marks a property as the partition key. Generates no code. Read by @Table.
 public struct PartitionKeyMacro: PeerMacro {

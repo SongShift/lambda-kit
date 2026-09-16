@@ -5,7 +5,9 @@
 //  bearer-token auth middleware that resolves to a `HikerID`.
 //
 
+import AWSLambdaEvents
 import Foundation
+import struct HTTPTypes.HTTPResponse
 import Logging
 import Routing
 

@@ -5,8 +5,8 @@
 //  Copyright © 2026 SongShift, LLC. All rights reserved.
 //
 
-import Foundation
-import HTTPTypes
+public import Foundation
+public import HTTPTypes
 
 /// Wire-ready response. Produced by `Router.handle`, consumed by the edge.
 public struct Response: Sendable {

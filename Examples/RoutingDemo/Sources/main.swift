@@ -10,6 +10,7 @@
 import AWSLambdaEvents
 import AWSLambdaRuntime
 import Foundation
+import struct HTTPTypes.HTTPResponse
 import Logging
 import Routing
 

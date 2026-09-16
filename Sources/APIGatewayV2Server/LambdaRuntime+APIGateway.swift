@@ -3,9 +3,9 @@
 //  LambdaKit
 //
 
-import AWSLambdaRuntime
+public import AWSLambdaRuntime
 import Foundation
-import Logging
+public import Logging
 
 /// Configuration for one local HTTP gateway server: the port to listen on, and
 /// an optional transformer to fill in what the real gateway would have put on

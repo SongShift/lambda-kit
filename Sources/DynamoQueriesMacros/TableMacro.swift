@@ -1,5 +1,5 @@
-import SwiftSyntax
-import SwiftSyntaxMacros
+public import SwiftSyntax
+public import SwiftSyntaxMacros
 import SwiftParser
 
 public struct TableMacro: ExtensionMacro {

@@ -1,4 +1,4 @@
-import Logging
+public import Logging
 
 /// The transport-level interface a `DynamoClient` adapter implements. Each
 /// method is non-chainable on purpose. Chaining lives on the `*Input` types

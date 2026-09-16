@@ -1,6 +1,6 @@
 import DynamoQueries
-import DynamoQueriesTestSupport
-import SnapshotTesting
+public import DynamoQueriesTestSupport
+public import SnapshotTesting
 
 extension Snapshotting where Value: RenderableRequest, Format == String {
     /// A snapshot strategy that compares a DynamoDB request by its rendered

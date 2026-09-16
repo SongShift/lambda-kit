@@ -11,7 +11,7 @@ public enum RequestBodyError: Error {
 
     public var message: String {
         switch self {
-        case let .decodingFailed(error):
+        case .decodingFailed:
             "The request body could not be decoded."
         }
     }

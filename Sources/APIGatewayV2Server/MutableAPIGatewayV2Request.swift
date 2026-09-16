@@ -3,11 +3,11 @@
 //  LambdaKit
 //
 
-import AWSLambdaEvents
+public import AWSLambdaEvents
 import Foundation
 import HTTPTypes
-import Hummingbird
-import NIOCore
+public import Hummingbird
+public import NIOCore
 import NIOFoundationCompat
 
 public struct MutableAPIGatewayV2Request: Encodable, Sendable {

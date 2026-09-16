@@ -1,4 +1,4 @@
-import Logging
+public import Logging
 
 /// An insert-or-replace request for a single item.
 ///

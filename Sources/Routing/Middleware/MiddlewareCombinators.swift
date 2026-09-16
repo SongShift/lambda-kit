@@ -17,7 +17,7 @@
 //  the `handle` implementation that wires `next` callbacks together.
 //
 
-import Logging
+public import Logging
 
 // MARK: - Chain
 
