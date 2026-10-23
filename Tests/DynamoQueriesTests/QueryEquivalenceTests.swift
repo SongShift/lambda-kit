@@ -690,6 +690,75 @@ struct UpdateItemEquivalenceTests {
         )
         expectEquivalent(dslSoto, reference)
     }
+
+    @Test("UpdateItem: an if includes its actions only when it holds", arguments: [true, false])
+    func updateItemIf(isFavorite: Bool) async throws {
+        let client = RecordingDynamoClient()
+        try await TrailRoute.update(partitionKey: "route-1") { column in
+            column.nameLower.set(to: "mist falls")
+            if isFavorite {
+                column.isFavorite.set(to: true)
+            }
+            column.createdAt.set(to: 1735776000.0)
+        }
+        .execute(using: client)
+        let captured = try #require(await client.lastUpdateInput(for: TrailRoute.self))
+        let dslSoto = captured.toSotoUpdateItemInput()
+
+        let reference = isFavorite
+            ? DynamoDB.UpdateItemInput(
+                expressionAttributeValues: [
+                    ":nameLower": .s("mist falls"),
+                    ":isFavorite": .bool(true),
+                    ":createdAt": .n("1735776000.0"),
+                ],
+                key: ["routeId": .s("route-1")],
+                tableName: "TrailRoutes",
+                updateExpression:
+                    "SET nameLower = :nameLower, isFavorite = :isFavorite, createdAt = :createdAt"
+            )
+            : DynamoDB.UpdateItemInput(
+                expressionAttributeValues: [
+                    ":nameLower": .s("mist falls"),
+                    ":createdAt": .n("1735776000.0"),
+                ],
+                key: ["routeId": .s("route-1")],
+                tableName: "TrailRoutes",
+                updateExpression: "SET nameLower = :nameLower, createdAt = :createdAt"
+            )
+        expectEquivalent(dslSoto, reference)
+    }
+
+    @Test("UpdateItem: if/else takes one branch's actions", arguments: [true, false])
+    func updateItemIfElse(isPrivate: Bool) async throws {
+        let client = RecordingDynamoClient()
+        try await TrailRoute.update(partitionKey: "route-1") { column in
+            if isPrivate {
+                column.isPrivate.set(to: true)
+            } else {
+                column.isPrivate.remove()
+                column.isFavorite.set(to: false)
+            }
+        }
+        .execute(using: client)
+        let captured = try #require(await client.lastUpdateInput(for: TrailRoute.self))
+        let dslSoto = captured.toSotoUpdateItemInput()
+
+        let reference = isPrivate
+            ? DynamoDB.UpdateItemInput(
+                expressionAttributeValues: [":isPrivate": .bool(true)],
+                key: ["routeId": .s("route-1")],
+                tableName: "TrailRoutes",
+                updateExpression: "SET isPrivate = :isPrivate"
+            )
+            : DynamoDB.UpdateItemInput(
+                expressionAttributeValues: [":isFavorite": .bool(false)],
+                key: ["routeId": .s("route-1")],
+                tableName: "TrailRoutes",
+                updateExpression: "SET isFavorite = :isFavorite REMOVE isPrivate"
+            )
+        expectEquivalent(dslSoto, reference)
+    }
 }
 
 // MARK: - DeleteItem
