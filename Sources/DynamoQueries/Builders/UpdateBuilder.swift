@@ -1,7 +1,11 @@
 @resultBuilder
 public struct UpdateBuilder {
-    public static func buildBlock(_ components: UpdateAction...) -> [UpdateAction] {
-        Array(components)
+    public static func buildExpression(_ expression: UpdateAction) -> [UpdateAction] {
+        [expression]
+    }
+
+    public static func buildBlock(_ components: [UpdateAction]...) -> [UpdateAction] {
+        components.flatMap { $0 }
     }
 
     public static func buildOptional(_ component: [UpdateAction]?) -> [UpdateAction] {
