@@ -1,11 +1,11 @@
 @resultBuilder
 public struct KeyConditionBuilder {
-    public static func buildExpression(_ condition: KeyCondition) -> KeyCondition {
-        condition
+    public static func buildExpression(_ condition: KeyCondition) -> [KeyCondition] {
+        [condition]
     }
 
-    public static func buildBlock(_ components: KeyCondition...) -> [KeyCondition] {
-        Array(components)
+    public static func buildBlock(_ components: [KeyCondition]...) -> [KeyCondition] {
+        components.flatMap(\.self)
     }
 
     public static func buildOptional(_ component: [KeyCondition]?) -> [KeyCondition] {

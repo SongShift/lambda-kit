@@ -61,6 +61,41 @@ struct QueryEquivalenceTests {
         expectEquivalent(dslSoto, reference)
     }
 
+    @Test("Query: an if includes its sort key condition only when it holds", arguments: [
+        "hiker-9",
+        nil,
+    ])
+    func queryKeyIf(hikerId: String?) async throws {
+        let client = RecordingDynamoClient()
+        _ = try await Hike.query { column in
+            Key {
+                column.hikeId == "hike-1"
+                if let hikerId {
+                    column.hikerSeasonGrade.beginsWith(hikerId)
+                }
+            }
+        }
+        .execute(using: client)
+        let dslSoto = try #require(await client.lastQueryInput(for: Hike.self)).toSotoQueryInput()
+
+        let reference = hikerId == nil
+            ? DynamoDB.QueryInput(
+                expressionAttributeValues: [":hikeId": .s("hike-1")],
+                keyConditionExpression: "hikeId = :hikeId",
+                tableName: "TrailHikes"
+            )
+            : DynamoDB.QueryInput(
+                expressionAttributeValues: [
+                    ":hikeId": .s("hike-1"),
+                    ":hikerId": .s("hiker-9"),
+                ],
+                keyConditionExpression:
+                    "(hikeId = :hikeId) AND (begins_with(hikerSeasonGrade, :hikerId))",
+                tableName: "TrailHikes"
+            )
+        expectEquivalent(dslSoto, reference)
+    }
+
     @Test("Query: filter expression on top of a key condition (descending GSI)")
     func queryWithFilterOnKey() async throws {
         let client = RecordingDynamoClient()
