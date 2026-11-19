@@ -93,7 +93,7 @@ private extension DynamoDBErrorType {
         case .resourceInUseException:
             reason = .resourceNotFound
         default:
-            reason = .unknown(code: nil)
+            reason = .unknown(code: self.errorCode)
         }
         return DynamoFailure(reason: reason, message: self.message)
     }
@@ -513,6 +513,7 @@ public struct SotoDynamoClient: DynamoClient {
 
     public func transactWrite(
         _ items: [DynamoQueries.TransactWriteItem],
+        idempotencyToken: String?,
         logger: Logger
     ) async throws {
         let sotoItems = try items.map { item -> DynamoDB.TransactWriteItem in
@@ -561,7 +562,13 @@ public struct SotoDynamoClient: DynamoClient {
                 ))
             }
         }
-        let soto = DynamoDB.TransactWriteItemsInput(transactItems: sotoItems)
+        // Soto only generates a token when the argument is left out, so passing
+        // nil through would send the transaction with none.
+        let soto = DynamoDB.TransactWriteItemsInput(
+            clientRequestToken: idempotencyToken
+                ?? DynamoDB.TransactWriteItemsInput.idempotencyToken(),
+            transactItems: sotoItems
+        )
         try await translatingDynamoFailures {
             try await translatingTransactionFailures {
                 _ = try await self.database.transactWriteItems(soto, logger: logger)

@@ -1070,6 +1070,22 @@ struct TransactWriteTests {
         #expect(kinds[3] == ("TrailDifficultyScores", "conditionCheck"))
     }
 
+    @Test("execute() hands its idempotency token to the client, and none by default")
+    func transactWriteIdempotencyToken() async throws {
+        let client = RecordingDynamoClient()
+        let transaction = TransactWriteInput {
+            PhotoScan.update(partitionKey: "scan-abc") { column in
+                column.status.set(to: "processing")
+            }
+        }
+
+        try await transaction.execute(using: client, idempotencyToken: "attempt-token")
+        try await transaction.execute(using: client, idempotencyToken: "attempt-token")
+        try await transaction.execute(using: client)
+
+        #expect(await client.transactWriteIdempotencyTokens == ["attempt-token", "attempt-token", nil])
+    }
+
     @Test("execute() rethrows TransactionCanceled with per-leg cancellations")
     func transactWriteRethrowsCanceled() async throws {
         let client = RecordingDynamoClient()

@@ -71,7 +71,11 @@ actor FakeDynamoClient: DynamoClient {
     }
     func batchGet<Model: DynamoModel>(_ input: BatchGetInput<Model>, logger _: Logger) async throws -> [Model] { [] }
     func batchWrite<Model: DynamoModel>(_ input: BatchWriteInput<Model>, logger _: Logger) async throws {}
-    func transactWrite(_ items: [TransactWriteItem], logger _: Logger) async throws {}
+    func transactWrite(
+        _ items: [TransactWriteItem],
+        idempotencyToken _: String?,
+        logger _: Logger
+    ) async throws {}
     func transactGet(
         _ items: [TransactGetItem],
         logger _: Logger

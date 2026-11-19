@@ -77,9 +77,21 @@ public protocol DynamoClient: Sendable {
     ) async throws
 
     /// Run an atomic, all-or-nothing multi-item write. Items can target
-    /// different tables. Failures surface as the adapter's native
-    /// `TransactionCanceledException` (typed wrapping is future work).
-    func transactWrite(_ items: [TransactWriteItem], logger: Logger) async throws
+    /// different tables. A transaction the database cancels throws
+    /// `TransactionCanceled`, which says why each leg failed.
+    ///
+    /// Calls that share an `idempotencyToken` (1 to 36 characters) and the
+    /// same items are one transaction to the database: once one of them
+    /// commits, repeating it succeeds without writing again. That holds for
+    /// ten minutes after the first call completes; a later call with the
+    /// token is a new transaction and writes again. The same token with
+    /// different items inside those ten minutes is rejected. With `nil`
+    /// every call is a transaction of its own.
+    func transactWrite(
+        _ items: [TransactWriteItem],
+        idempotencyToken: String?,
+        logger: Logger
+    ) async throws
 
     /// Run an atomic, serializable read of up to 100 items (which may span
     /// tables) in a single `TransactGetItems` call. Returns one optional per
@@ -98,4 +110,12 @@ public protocol DynamoClient: Sendable {
         _ items: [TransactGetItem],
         logger: Logger
     ) async throws -> [(any DynamoModel)?]
+}
+
+extension DynamoClient {
+    /// Run a transact write as a transaction of its own, with no idempotency
+    /// token shared with any other call.
+    public func transactWrite(_ items: [TransactWriteItem], logger: Logger) async throws {
+        try await self.transactWrite(items, idempotencyToken: nil, logger: logger)
+    }
 }

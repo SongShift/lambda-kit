@@ -206,7 +206,11 @@ public actor FailingDynamoClient: DynamoClient {
         try failIfNeeded(.batchWrite)
     }
 
-    public func transactWrite(_ items: [TransactWriteItem], logger _: Logger) async throws {
+    public func transactWrite(
+        _ items: [TransactWriteItem],
+        idempotencyToken _: String?,
+        logger _: Logger
+    ) async throws {
         try failIfNeeded(.transactWrite)
     }
 

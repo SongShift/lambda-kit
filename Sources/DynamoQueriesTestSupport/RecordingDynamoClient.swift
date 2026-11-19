@@ -59,6 +59,9 @@ public actor RecordingDynamoClient: DynamoClient {
     private var countQueryInputs: [ObjectIdentifier: [Any]] = [:]
     private var countScanInputs: [ObjectIdentifier: [Any]] = [:]
     public private(set) var lastTransactWriteItems: [TransactWriteItem]?
+    /// The idempotency token of each transact write, in call order. Kept out of
+    /// ``requestLog`` so a random token does not break transcript snapshots.
+    public private(set) var transactWriteIdempotencyTokens: [String?] = []
     public private(set) var lastTransactGetItems: [TransactGetItem]?
 
     // MARK: - Seeded responses
@@ -183,9 +186,14 @@ public actor RecordingDynamoClient: DynamoClient {
         batchWriteInputs[ObjectIdentifier(Model.self)] = input
     }
 
-    public func transactWrite(_ items: [TransactWriteItem], logger _: Logger) async throws {
+    public func transactWrite(
+        _ items: [TransactWriteItem],
+        idempotencyToken: String?,
+        logger _: Logger
+    ) async throws {
         requestLog.append("TransactWrite legs=\(items.count) tables=\(items.map(\.tableName))")
         lastTransactWriteItems = items
+        transactWriteIdempotencyTokens.append(idempotencyToken)
         if let error = transactWriteError {
             transactWriteError = nil
             throw error
