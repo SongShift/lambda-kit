@@ -131,9 +131,8 @@ public struct TransactWriteItem: Sendable {
 /// result-builder init, or hand `init(items:)` a pre-built `[TransactWriteItem]`.
 ///
 /// `ConditionalCheckFailed` is **not** thrown for transactional failures.
-/// DynamoDB returns a `TransactionCanceledException` whose cancellation
-/// reasons identify which leg failed. Adapters surface that as their native
-/// error type for now; a typed wrapper can land later.
+/// DynamoDB cancels the whole transaction, and `execute` throws
+/// `TransactionCanceled`, whose cancellations identify which leg failed.
 public struct TransactWriteInput: Sendable {
     public var items: [TransactWriteItem]
 
@@ -266,11 +265,19 @@ public enum TransactWriteBuilder {
 // MARK: - Execute
 
 extension TransactWriteInput {
+    /// Run the transaction. A caller that retries the same, unchanged
+    /// transaction should make one `idempotencyToken` (a UUID string fits) and
+    /// pass it on every attempt, so an attempt that committed without its
+    /// response arriving is not applied, or rejected by its own conditions, a
+    /// second time. The protection lasts ten minutes from the first attempt
+    /// completing, so retries have to finish inside that; see
+    /// ``DynamoClient/transactWrite(_:idempotencyToken:logger:)``.
     public func execute(
         using client: any DynamoClient,
+        idempotencyToken: String? = nil,
         logger: Logger = .dynamoQueriesDisabled
     ) async throws {
-        try await client.transactWrite(items, logger: logger)
+        try await client.transactWrite(items, idempotencyToken: idempotencyToken, logger: logger)
     }
 }
 
