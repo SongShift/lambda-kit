@@ -392,6 +392,17 @@ extension Attribute {
     /// Add the given elements to a set attribute (DynamoDB `ADD` clause for
     /// sets, distinct from ADD on a numeric attribute, which increments).
     /// Set semantics: duplicates are silently no-ops.
+    ///
+    /// DynamoDB creates the set when the item has no such attribute, and
+    /// rejects the update when the attribute holds anything other than a set
+    /// of the same element type, a list included. How an item written whole
+    /// stores a `Set` property is up to the adapter: `DynamoQueriesSoto`
+    /// writes a model's string and number set properties as DynamoDB sets,
+    /// so this works on an item it put. The exception is a non-optional
+    /// property that was empty when the item was written. DynamoDB has no
+    /// empty set, so that is stored as an empty list and the update is
+    /// rejected; an empty optional property is left out of the item instead.
+    /// Declare a set you grow this way as optional.
     public func addToSet<Element: DynamoSetElement>(_ elements: Set<Element>) -> UpdateAction
         where Value == Set<Element> {
         .add(attributeName: name, value: elements.toDynamoValue())
@@ -405,6 +416,12 @@ extension Attribute {
     /// Remove the given elements from a set attribute (DynamoDB `DELETE`
     /// clause for sets, distinct from `remove()` which deletes the whole
     /// attribute).
+    ///
+    /// Like `addToSet(_:)`, this is rejected when the attribute holds
+    /// anything other than a set of the same element type. Removing the last
+    /// element removes the attribute, because DynamoDB has no empty set, and
+    /// a model whose property is not optional can no longer decode the item.
+    /// Declare a set you shrink this way as optional.
     public func removeFromSet<Element: DynamoSetElement>(_ elements: Set<Element>) -> UpdateAction
         where Value == Set<Element> {
         .delete(attributeName: name, value: elements.toDynamoValue())

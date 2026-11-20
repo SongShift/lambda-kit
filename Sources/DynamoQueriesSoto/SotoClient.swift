@@ -306,10 +306,11 @@ extension DynamoQueries.UpdateReturnValues {
 }
 
 extension DynamoQueries.PutItemInput {
-    /// Builds the Soto request for this put, encoding the model item via
-    /// the adapter's JSON-bridging encoder.
+    /// Builds the Soto request for this put, encoding the model item with
+    /// the adapter's Codable bridge, which stores `Set` columns as DynamoDB
+    /// sets.
     public func toSotoPutItemInput(tableNameOverride: String? = nil) throws -> DynamoDB.PutItemInput {
-        let encodedItem = try DynamoEncoder.encode(item)
+        let encodedItem = try DynamoEncoder.encodeItem(item)
         return DynamoDB.PutItemInput(
             conditionExpression: conditionExpression,
             expressionAttributeNames: expressionAttributeNames.isEmpty
@@ -522,7 +523,7 @@ public struct SotoDynamoClient: DynamoClient {
                 item.returnConflictingItem ? .allOld : nil
             switch item.kind {
             case .put(let model, let condition):
-                let encoded = try DynamoEncoder.encode(model)
+                let encoded = try DynamoEncoder.encodeItem(model)
                 return .put(DynamoDB.Put(
                     conditionExpression: condition?.expression,
                     expressionAttributeNames: nonEmpty(condition?.attributeNames),
@@ -643,7 +644,7 @@ public struct SotoDynamoClient: DynamoClient {
         try await translatingDynamoFailures {
             let resolved = self.resolveTableName(input.tableName)
             let putRequests = try input.putItems.map { item -> DynamoDB.WriteRequest in
-                let encoded = try DynamoEncoder.encode(item)
+                let encoded = try DynamoEncoder.encodeItem(item)
                 return DynamoDB.WriteRequest(putRequest: DynamoDB.PutRequest(item: encoded))
             }
             let deleteRequests = input.deleteKeys.map { key in
@@ -797,6 +798,29 @@ extension DynamoDB.AttributeValue {
 // in a `.n` attribute, keeping values sortable in DynamoDB indexes and
 // timezone-correct without further configuration.
 //
+// Sets:
+// Soto's encoder writes every `Set` as a list (`.l`), because a set reaches
+// it through an unkeyed container like any other sequence. The query DSL
+// treats a `Set` column as a DynamoDB set: `addToSet` / `removeFromSet`
+// compile to `ADD` / `DELETE`, which DynamoDB rejects on a list. So when a
+// whole model is written, `encodeItem` converts each column the model
+// declares as a `Set` of strings or numbers from the list Soto wrote to
+// `.ss` / `.ns`. The decoder accepts either shape for a `Set` property, so
+// items written before this conversion existed still decode.
+//
+// Only the model's own columns are converted, and they are read from the
+// `_attributes` list the `@Table` macro generates. A set nested inside
+// another value (a struct, an array, a dictionary) is still written as a
+// list, and so are `Set<Data>` (see "Binary fields") and sets of any other
+// element type.
+//
+// DynamoDB has no empty set. An empty set in an optional column is left out
+// of the item, which is also what DynamoDB stores once the last element is
+// removed from a set, so a later `addToSet` creates it. An empty set in a
+// non-optional column stays an empty list, because the model could not
+// decode the item without the attribute; `addToSet` / `removeFromSet` are
+// rejected on an attribute stored that way.
+//
 // Binary fields:
 // Soto's coder only special-cases `AWSBase64Data` (`.b` on the wire, native
 // DynamoDB binary). Plain `Data` falls through to `Data.encode(to:)`,
@@ -812,6 +836,54 @@ enum DynamoEncoder {
         let encoder = DynamoDBEncoder()
         encoder.dateEncodingStrategy = .secondsSince1970
         return try encoder.encode(value)
+    }
+
+    /// Encodes a whole model item, storing its `Set` columns as DynamoDB sets.
+    static func encodeItem<Model: DynamoModel>(_ model: Model) throws -> [String: DynamoDB.AttributeValue] {
+        var item = try encode(model)
+        // One `Attribute` per property, named and typed the way the query
+        // DSL addresses it.
+        for attribute in Model._attributes {
+            (attribute as? any SetColumn)?.storeAsSet(in: &item)
+        }
+        return item
+    }
+}
+
+/// A column the query DSL offers `addToSet` / `removeFromSet` on.
+private protocol SetColumn {
+    /// Replaces the list Soto's encoder wrote for this column with a set.
+    func storeAsSet(in item: inout [String: DynamoDB.AttributeValue])
+}
+
+private protocol SetColumnValue {
+    static var isOptional: Bool { get }
+}
+
+extension Set: SetColumnValue where Element: DynamoSetElement {
+    fileprivate static var isOptional: Bool { false }
+}
+
+extension Optional: SetColumnValue where Wrapped: SetColumnValue {
+    fileprivate static var isOptional: Bool { true }
+}
+
+extension Attribute: SetColumn where Value: SetColumnValue {
+    fileprivate func storeAsSet(in item: inout [String: DynamoDB.AttributeValue]) {
+        guard case .l(let elements) = item[name] else { return }
+        let strings = elements.compactMap { element -> String? in
+            if case .s(let string) = element { string } else { nil }
+        }
+        let numbers = elements.compactMap { element -> String? in
+            if case .n(let number) = element { number } else { nil }
+        }
+        if elements.isEmpty {
+            if Value.isOptional { item[name] = nil }
+        } else if strings.count == elements.count {
+            item[name] = .ss(strings.sorted())
+        } else if numbers.count == elements.count {
+            item[name] = .ns(numbers.sorted())
+        }
     }
 }
 

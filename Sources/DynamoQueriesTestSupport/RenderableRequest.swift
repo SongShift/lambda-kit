@@ -44,7 +44,16 @@ public enum RequestRender {
     }
 
     /// Render a `Codable` item as sorted-key JSON, so a `put`'s payload shows up
-    /// stably in a snapshot. 
+    /// stably in a snapshot.
+    ///
+    /// This is the model's own JSON form, not the attribute values an adapter
+    /// sends, so it does not show DynamoDB types. A `Set` renders as a JSON
+    /// array, in whatever order the set iterates, whether the adapter stores
+    /// it as a set or a list. An empty optional set that `DynamoQueriesSoto`
+    /// leaves out of the item still renders as `[]`, and a `Date` renders as
+    /// `JSONEncoder` writes it rather than as epoch seconds. To assert on what
+    /// is stored, inspect the adapter's own request (for `DynamoQueriesSoto`,
+    /// `toSotoPutItemInput().item`).
     public static func item(_ item: some Encodable) -> String {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]

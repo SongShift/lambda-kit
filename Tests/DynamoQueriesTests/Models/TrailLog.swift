@@ -204,3 +204,29 @@ public struct PendingHikeBatch: Codable {
     public var batchId: String
     public var attempts: Int
 }
+
+// MARK: - HikerProfile (set columns)
+
+public struct GearList: Codable, Equatable, Sendable {
+    public var name: String
+    public var items: Set<String>
+}
+
+@Table("TrailHikerProfiles")
+public struct HikerProfile: Codable, Equatable {
+    @PartitionKey
+    public var hikerId: String
+    public var badges: Set<String> = []
+    public var summitYears: Set<Int> = []
+    public var paces: Set<Double>? = nil
+    @Attribute("wish_list")
+    public var wishlist: Set<String>? = nil
+    public var fingerprints: Set<Data>? = nil
+    public var gear: GearList? = nil
+
+    enum CodingKeys: String, CodingKey {
+        case hikerId, badges, summitYears, paces
+        case wishlist = "wish_list"
+        case fingerprints, gear
+    }
+}

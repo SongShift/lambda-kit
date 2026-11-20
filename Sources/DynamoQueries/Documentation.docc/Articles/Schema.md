@@ -39,8 +39,8 @@ The macro generates four things:
   * A static `_table` ``TableMetadata`` value carrying the runtime schema:
     table name, partition key, optional sort key.
   * A nested `Columns` struct (one ``Attribute`` per declared property) plus
-    a static `Attributes` enum and a generated `$name` accessor for each
-    attribute.
+    a static `Attributes` enum, a static `_attributes` list of all of them,
+    and a generated `$name` accessor for each attribute.
   * A nested `Indexes` enum with one ``Index`` value per `@Index`
     declaration.
 
@@ -127,3 +127,38 @@ If you need a property name on the wire that differs from the Swift
 property name, prefer ``Attribute(_:)`` over `CodingKeys`: the
 `@Attribute("name")` annotation is what the expression compiler uses, so
 filters and updates need it to be set correctly.
+
+### Sets
+
+A `Set<String>`, `Set<Int>` or `Set<Double>` property of the model is
+written as a DynamoDB string set or number set. That is the type
+`addToSet(_:)` and `removeFromSet(_:)` operate on, so they apply to an item
+that was written whole. Items stored with a list in that attribute still
+decode: a `Set` property reads from either. Such an item keeps its list,
+and the two operations are rejected on it, until it is written whole again.
+
+Only the model's own properties are converted. A set nested inside another
+value (a struct, an array or a dictionary) is written as a list, so
+`addToSet(_:)` and `removeFromSet(_:)` on a `nested(_:as:)` path are
+rejected on an item written whole. `Set<Data>` and sets of other element
+types are written as lists too. The attribute is looked up under the name
+the query DSL uses for it, so a property renamed with `@Attribute` is only
+converted when its coding key is the same name.
+
+DynamoDB has no empty set, and removing the last element of a set removes
+the attribute. Declare a set you change with `addToSet(_:)` or
+`removeFromSet(_:)` as optional so the model decodes an item without it:
+
+```swift
+@Table("Hikers")
+struct Hiker: Codable {
+    @PartitionKey var hikerID: String
+    var badges: Set<String>?
+}
+```
+
+When an item is written whole, an empty optional set is left out of the
+item, and it reads back as `nil`. An empty non-optional set is written as an
+empty list, because the model could not decode the item without the
+attribute; `addToSet(_:)` and `removeFromSet(_:)` are rejected on that item
+until the attribute is overwritten or removed.

@@ -47,6 +47,8 @@ final class TableMacroTests: XCTestCase {
 
                 static let columns = Columns()
 
+                static let _attributes: [any AttributeReference] = [Attributes.id, Attributes.email]
+
                 enum Indexes {
                     static let byEmailIndex = Index<User>(name: "byEmail-index", partitionKeys: [KeyAttribute("email", type: (String).dynamoKeyType)])
                 }
@@ -130,6 +132,8 @@ final class TableMacroTests: XCTestCase {
                 }
 
                 static let columns = Columns()
+
+                static let _attributes: [any AttributeReference] = [Attributes.linkId, Attributes.creatorId, Attributes.isDeleted, Attributes.createdAt]
 
                 enum Indexes {
                     static let creatorIdIsDeletedCreatedAtIndex = Index<QuickShareLink>(name: "creatorId-isDeleted-createdAt-index", partitionKeys: [KeyAttribute("creatorId", type: (String).dynamoKeyType), KeyAttribute("isDeleted", type: (Int).dynamoKeyType)], sortKeys: [KeyAttribute("createdAt", type: (Double).dynamoKeyType)])

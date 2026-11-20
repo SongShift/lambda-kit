@@ -204,6 +204,8 @@ public struct TableMacro: ExtensionMacro {
             "        \(accessLevel)let \(property.swiftName) = \(attributeType(property))(\"\(property.dynamoName)\")"
         }.joined(separator: "\n")
 
+        let attributeList = properties.map { "Attributes.\($0.swiftName)" }.joined(separator: ", ")
+
         // Key-shaped CRUD factories. The macro knows the table's key shape, so
         // it emits *only* the matching overload, non-throwing, since there's
         // nothing left to validate at runtime. Calling the wrong arity (a
@@ -323,7 +325,9 @@ public struct TableMacro: ExtensionMacro {
         \(columnDecls)
             }
 
-            \(accessLevel)static let columns = Columns()\(indexesBlock)\(factoryBlock)
+            \(accessLevel)static let columns = Columns()
+
+            \(accessLevel)static let _attributes: [any AttributeReference] = [\(attributeList)]\(indexesBlock)\(factoryBlock)
 
         \(accessorDecls)
         }

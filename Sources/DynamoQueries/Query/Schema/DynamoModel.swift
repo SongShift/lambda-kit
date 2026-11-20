@@ -12,10 +12,19 @@ public protocol DynamoModel: Sendable, Codable {
     /// Together with `_table` this is the model's complete table schema;
     /// `DynamoQueriesSoto` derives `CreateTable` requests from it.
     static var indexes: [Index<Self>] { get }
+
+    /// The attributes in `Columns`, one per property there, in declaration
+    /// order and with the same names and types. Adapters read it to learn
+    /// the model's attribute types without an instance; `DynamoQueriesSoto`
+    /// uses it to store `Set` attributes as DynamoDB sets. The `@Table`
+    /// macro generates it. A conformance written by hand that leaves it
+    /// empty gets no such treatment.
+    static var _attributes: [any AttributeReference] { get }
 }
 
 extension DynamoModel {
     public static var indexes: [Index<Self>] { [] }
+    public static var _attributes: [any AttributeReference] { [] }
 }
 
 // MARK: - Build entry points
