@@ -35,7 +35,7 @@ public struct Response: Sendable {
         return Response(
             statusCode: statusCode,
             headers: headers,
-            body: "{\"error\":\"\(message)\"}"
+            body: ErrorBody.json(message: message)
         )
     }
 }
@@ -102,7 +102,7 @@ public struct RouteResponse: Sendable {
         return RouteResponse(
             statusCode: statusCode,
             headers: headers,
-            body: .string("{\"error\":\"\(message)\"}")
+            body: .string(ErrorBody.json(message: message))
         )
     }
 
@@ -123,5 +123,18 @@ public struct RouteResponse: Sendable {
             headers: self.headers,
             body: bodyString
         )
+    }
+}
+
+/// The `{"error":"<message>"}` body both `error` factories send. The message is encoded, not
+/// interpolated, so one that holds a quote, a backslash or a line break is still valid JSON.
+enum ErrorBody {
+    static func json(message: String) -> String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .withoutEscapingSlashes
+        guard let data = try? encoder.encode(["error": message]) else {
+            return #"{"error":"Internal server error"}"#
+        }
+        return String(decoding: data, as: UTF8.self)
     }
 }
